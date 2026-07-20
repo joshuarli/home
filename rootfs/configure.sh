@@ -63,12 +63,13 @@ EOF
 
 mkdir -p "$rootfs/etc/kernel-hooks.d"
 cat > "$rootfs/etc/kernel-hooks.d/secureboot.conf" <<'EOF'
-cmdline="root=PARTUUID=INSTALLER_ROOT_PARTUUID rootfstype=ext4 rw"
+cmdline="console=ttyS0,115200 console=tty0 root=PARTUUID=INSTALLER_ROOT_PARTUUID rootfstype=ext4 rw"
 EOF
 
 sed -i '/^tty1::/d; /^tty[2-6]::/d' "$rootfs/etc/inittab"
 cat >> "$rootfs/etc/inittab" <<'EOF'
 tty1::respawn:/sbin/agetty --autologin josh --noclear 38400 tty1 linux
+ttyS0::respawn:/sbin/agetty --autologin josh --noclear 115200 ttyS0 vt100
 EOF
 
 mkdir -p "$rootfs/etc/runlevels/boot"

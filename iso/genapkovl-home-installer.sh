@@ -64,5 +64,27 @@ rc_add mount-ro shutdown
 rc_add killprocs shutdown
 rc_add savecache shutdown
 
-tar -czf home-installer.apkovl.tar.gz -C "$tmp" etc root
+mkdir -p "$tmp/etc/init.d" "$tmp/etc/runlevels/default"
+makefile root:root 0755 "$tmp/etc/init.d/home-installer-qemu" <<'EOF'
+#!/sbin/openrc-run
 
+description="Run the installer automatically in QEMU smoke tests"
+
+depend() {
+    need localmount
+    after bootmisc networking
+}
+
+start() {
+    cat /sys/class/dmi/id/product_name /sys/class/dmi/id/sys_vendor 2>/dev/null | grep -q QEMU || return 0
+    while [ ! -f /root/home-installer/install.sh ]; do
+        sleep 1
+    done
+    IS_QEMU=1 INSTALLER_DISK=/dev/vda QEMU_NET_IFACE=eth0 \
+        /root/home-installer/install.sh </dev/ttyS0 >/dev/ttyS0 2>&1 || return 1
+    poweroff -f
+}
+EOF
+ln -sf /etc/init.d/home-installer-qemu "$tmp/etc/runlevels/default/home-installer-qemu"
+
+tar -czf home-installer.apkovl.tar.gz -C "$tmp" etc root

@@ -3,6 +3,7 @@ set -eu
 
 archive=/root/home-installer/rootfs.tar.gz
 target=/mnt/home-installer
+is_qemu=${IS_QEMU:-0}
 wifi_conf=
 wpa_pid=
 
@@ -30,67 +31,76 @@ for command in awk blkid blockdev chroot efibootmgr findmnt ip lsblk mkfs.ext4 m
 done
 
 [ "$(id -u)" -eq 0 ] || die "run this installer as root"
-[ -d /sys/firmware/efi ] || die "this installer requires UEFI mode"
+[ "$is_qemu" = 1 ] || [ -d /sys/firmware/efi ] || die "this installer requires UEFI mode"
 [ -f "$archive" ] || die "embedded rootfs archive is missing"
 
 secure_boot_var=
-for candidate in /sys/firmware/efi/efivars/SecureBoot-*; do
-    if [ -f "$candidate" ]; then
-        secure_boot_var=$candidate
-        break
-    fi
-done
-if [ -n "$secure_boot_var" ] && [ "$(od -An -t u1 "$secure_boot_var" | awk '{print $NF}')" = 1 ]; then
-    die "Secure Boot is enabled; this unsigned installer requires it to be disabled"
-fi
-
-wifi_interfaces=
-for sys_iface in /sys/class/net/*; do
-    iface=${sys_iface##*/}
-    [ -d "$sys_iface/wireless" ] || continue
-    vendor=
-    [ -r "$sys_iface/device/vendor" ] && vendor=$(cat "$sys_iface/device/vendor")
-    [ "$vendor" = 0x8086 ] || continue
-    wifi_interfaces="$wifi_interfaces $iface"
-done
-
-set -- $wifi_interfaces
-[ "$#" -gt 0 ] || die "no Intel wireless interface was found"
-if [ "$#" -eq 1 ]; then
-    wifi_iface=$1
-else
-    echo "Available Intel wireless interfaces:"
-    i=1
-    for iface do
-        echo "  $i) $iface"
-        i=$((i + 1))
+if [ "$is_qemu" != 1 ]; then
+    for candidate in /sys/firmware/efi/efivars/SecureBoot-*; do
+        if [ -f "$candidate" ]; then
+            secure_boot_var=$candidate
+            break
+        fi
     done
-    printf "Select interface [1]: "
-    read -r choice
-    choice=${choice:-1}
-    eval "wifi_iface=\$$choice"
-    [ -n "$wifi_iface" ] || die "invalid wireless interface selection"
+    if [ -n "$secure_boot_var" ] && [ "$(od -An -t u1 "$secure_boot_var" | awk '{print $NF}')" = 1 ]; then
+        die "Secure Boot is enabled; this unsigned installer requires it to be disabled"
+    fi
 fi
 
-printf "Wi-Fi SSID: "
-read -r ssid
-[ -n "$ssid" ] || die "SSID cannot be empty"
-printf "Wi-Fi passphrase: "
-stty -echo
-read -r passphrase
-stty echo
-printf "\n"
+if [ "$is_qemu" = 1 ]; then
+    wifi_iface=${QEMU_NET_IFACE:-eth0}
+    echo "QEMU mode: using DHCP on $wifi_iface; skipping physical Wi-Fi checks."
+else
+    wifi_interfaces=
+    for sys_iface in /sys/class/net/*; do
+        iface=${sys_iface##*/}
+        [ -d "$sys_iface/wireless" ] || continue
+        vendor=
+        [ -r "$sys_iface/device/vendor" ] && vendor=$(cat "$sys_iface/device/vendor")
+        [ "$vendor" = 0x8086 ] || continue
+        wifi_interfaces="$wifi_interfaces $iface"
+    done
 
-wifi_conf=$(mktemp)
-chmod 0600 "$wifi_conf"
-wpa_passphrase "$ssid" "$passphrase" > "$wifi_conf"
-sed -i '/^[[:space:]]*#psk=/d' "$wifi_conf"
-unset passphrase
+    set -- $wifi_interfaces
+    [ "$#" -gt 0 ] || die "no Intel wireless interface was found"
+    if [ "$#" -eq 1 ]; then
+        wifi_iface=$1
+    else
+        echo "Available Intel wireless interfaces:"
+        i=1
+        for iface do
+            echo "  $i) $iface"
+            i=$((i + 1))
+        done
+        printf "Select interface [1]: "
+        read -r choice
+        choice=${choice:-1}
+        eval "wifi_iface=\$$choice"
+        [ -n "$wifi_iface" ] || die "invalid wireless interface selection"
+    fi
 
-echo "Connecting to Wi-Fi on $wifi_iface..."
+    printf "Wi-Fi SSID: "
+    read -r ssid
+    [ -n "$ssid" ] || die "SSID cannot be empty"
+    printf "Wi-Fi passphrase: "
+    stty -echo
+    read -r passphrase
+    stty echo
+    printf "\n"
+
+    wifi_conf=$(mktemp)
+    chmod 0600 "$wifi_conf"
+    wpa_passphrase "$ssid" "$passphrase" > "$wifi_conf"
+    sed -i '/^[[:space:]]*#psk=/d' "$wifi_conf"
+    unset passphrase
+
+    echo "Connecting to Wi-Fi on $wifi_iface..."
+    ip link set "$wifi_iface" up
+    wpa_supplicant -B -i "$wifi_iface" -c "$wifi_conf"
+    wpa_pid=$(pidof wpa_supplicant 2>/dev/null | awk '{print $1}' || true)
+fi
+
 ip link set "$wifi_iface" up
-wpa_supplicant -B -i "$wifi_iface" -c "$wifi_conf"
-wpa_pid=$(pidof wpa_supplicant 2>/dev/null | awk '{print $1}' || true)
 udhcpc -i "$wifi_iface" -q -n >/dev/null 2>&1 || die "DHCP failed"
 nslookup dl-cdn.alpinelinux.org >/dev/null 2>&1 || die "DNS verification failed"
 echo "Network preflight passed."
@@ -114,15 +124,24 @@ $(lsblk -dpno NAME,SIZE,MODEL,TYPE)
 EOF
 [ "$candidate_count" -gt 0 ] || die "no target disks found"
 
-printf "Target disk (ALL DATA WILL BE ERASED): "
-read -r disk
+if [ "$is_qemu" = 1 ] && [ -n "${INSTALLER_DISK:-}" ]; then
+    disk=$INSTALLER_DISK
+    echo "QEMU mode: selecting $disk."
+else
+    printf "Target disk (ALL DATA WILL BE ERASED): "
+    read -r disk
+fi
 [ -b "$disk" ] || die "not a block device: $disk"
 [ "$disk" != "$installer_disk" ] || die "the installer disk cannot be selected"
 
 disk_type=$(lsblk -dnpo TYPE "$disk")
 [ "$disk_type" = disk ] || die "target must be a whole disk: $disk"
-printf "Type '%s' again to confirm: " "$disk"
-read -r confirmation
+if [ "$is_qemu" = 1 ]; then
+    confirmation=$disk
+else
+    printf "Type '%s' again to confirm: " "$disk"
+    read -r confirmation
+fi
 [ "$confirmation" = "$disk" ] || die "disk erase was not confirmed"
 
 sector_size=$(blockdev --getss "$disk")
@@ -130,7 +149,11 @@ disk_sectors=$(blockdev --getsz "$disk")
 alignment=2048
 boot_sectors=$((512 * 1024 * 1024 / sector_size))
 ram_kib=$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo)
-swap_sectors=$((ram_kib * 1024 * 2 / sector_size))
+if [ "$is_qemu" = 1 ]; then
+    swap_sectors=$((256 * 1024 * 1024 / sector_size))
+else
+    swap_sectors=$((ram_kib * 1024 * 2 / sector_size))
+fi
 swap_sectors=$((swap_sectors + alignment - 1))
 swap_sectors=$((swap_sectors / alignment * alignment))
 swap_start=$((alignment + boot_sectors))
@@ -189,9 +212,11 @@ EOF
 
 rm -f "$target/etc/resolv.conf"
 cp -L /etc/resolv.conf "$target/etc/resolv.conf"
-mkdir -p "$target/etc/wpa_supplicant"
-cp "$wifi_conf" "$target/etc/wpa_supplicant/wpa_supplicant.conf"
-chmod 0600 "$target/etc/wpa_supplicant/wpa_supplicant.conf"
+if [ "$is_qemu" != 1 ]; then
+    mkdir -p "$target/etc/wpa_supplicant"
+    cp "$wifi_conf" "$target/etc/wpa_supplicant/wpa_supplicant.conf"
+    chmod 0600 "$target/etc/wpa_supplicant/wpa_supplicant.conf"
+fi
 cat > "$target/etc/network/interfaces" <<EOF
 auto lo
 iface lo inet loopback
@@ -211,7 +236,9 @@ mount --make-rslave "$target/run"
 root_partuuid=$(blkid -s PARTUUID -o value "$root_partition")
 sed -i "s/INSTALLER_ROOT_PARTUUID/$root_partuuid/" "$target/etc/kernel-hooks.d/secureboot.conf"
 chroot "$target" rc-update add networking boot
-chroot "$target" rc-update add wpa_supplicant boot
+if [ "$is_qemu" != 1 ]; then
+    chroot "$target" rc-update add wpa_supplicant boot
+fi
 chroot "$target" apk fix kernel-hooks
 
 uki=$(find "$target/boot" -type f -name '*.efi' | head -n 1)
