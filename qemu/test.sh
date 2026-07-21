@@ -66,7 +66,8 @@ qemu-img create -f raw "$disk" 8G >/dev/null
 
 echo "Booting the installer in QEMU..."
 qemu-system-x86_64 \
-    -machine pc,accel=tcg \
+    -machine pc \
+    -accel tcg,thread=multi \
     -cpu max \
     -m 1024 \
     -smp 4 \
@@ -86,7 +87,8 @@ qemu_pid=$!
 trap 'kill "$qemu_pid" 2>/dev/null || true' EXIT INT TERM
 
 attempt=0
-while kill -0 "$qemu_pid" 2>/dev/null; do
+while [ "$(ps -p "$qemu_pid" -o stat= 2>/dev/null | tr -d ' ')" != "" ] &&
+    ! ps -p "$qemu_pid" -o stat= 2>/dev/null | tr -d ' ' | grep -q '^Z'; do
     if grep -q 'Installation complete\.' "$log" 2>/dev/null; then
         echo "QEMU installer test passed. Disk left at $disk"
         kill "$qemu_pid" 2>/dev/null || true

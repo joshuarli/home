@@ -30,6 +30,13 @@ makefile root:root 0644 "$tmp/etc/hostname" <<EOF
 home-installer
 EOF
 
+runtime_packages="iproute2 util-linux blkid findmnt lsblk partx sfdisk wipefs dosfstools e2fsprogs efibootmgr tar gzip bind-tools wpa_supplicant"
+apk --root "$tmp" --initdb --no-cache --no-progress \
+    --keys-dir /etc/apk/keys \
+    --repositories-file /etc/apk/repositories \
+    add $runtime_packages
+rm -f "$tmp/sbin/init" "$tmp/sbin/switch_root"
+
 makefile root:root 0644 "$tmp/etc/apk/world" <<EOF
 alpine-base
 linux-lts
@@ -106,4 +113,4 @@ start() {
 EOF
 rc_add home-installer-qemu default
 
-tar -czf home-installer.apkovl.tar.gz -C "$tmp" etc root
+tar -czf home-installer.apkovl.tar.gz -C "$tmp" etc root lib sbin usr
