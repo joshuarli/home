@@ -1,7 +1,7 @@
 ARG BUILDARCH
 ARG TARGETARCH
 
-FROM alpine:latest AS rootfs
+FROM alpine:3.24.1 AS rootfs
 ARG BUILDARCH
 ARG TARGETARCH
 ENV BUILDARCH=$BUILDARCH TARGETARCH=$TARGETARCH
@@ -12,7 +12,7 @@ COPY rootfs/configure.sh /work/configure-rootfs.sh
 COPY build/build-rootfs.sh /work/build-rootfs.sh
 RUN chmod +x /work/configure-rootfs.sh /work/build-rootfs.sh && /work/build-rootfs.sh
 
-FROM alpine:latest AS iso-tools
+FROM alpine:3.24.1 AS iso-tools
 
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add abuild alpine-conf git grub mtools squashfs-tools zstd-libs syslinux xorriso tar gzip

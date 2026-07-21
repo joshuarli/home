@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-tag=$(cut -d. -f1,2 /etc/alpine-release)
+release=$(cat /etc/alpine-release)
+tag=${release%.*}
 aports=/work/aports
 
 cp /work/iso/mkimg.home_installer.sh "$aports/scripts/mkimg.home_installer.sh"
@@ -33,7 +34,7 @@ sed -i \
 
 cd "$aports/scripts"
 sh "$aports/scripts/mkimage.sh" \
-    --tag "$tag" \
+    --tag "$release" \
     --outdir /work/out \
     --workdir /work/mkimage-work \
     --arch x86_64 \

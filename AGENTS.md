@@ -18,7 +18,7 @@ The primary command is:
 make build
 ```
 
-This builds an amd64 `home-installer.iso` using `alpine:latest` as the Docker
+This builds an amd64 `home-installer.iso` using Alpine `3.24.1` as the Docker
 build environment. The resulting artifact is written to `dist/`.
 
 The installed system should:
@@ -58,10 +58,10 @@ producing an amd64 ISO.
 
 The Dockerfile has three conceptual stages:
 
-1. `rootfs` starts from `alpine:latest`, installs the tools needed to assemble
+1. `rootfs` starts from Alpine `3.24.1`, installs the tools needed to assemble
    an x86_64 filesystem, installs the target package list into an alternate
    root, configures it, runs smoke checks, and creates `/work/out/rootfs.tar.gz`.
-2. `iso` starts from `alpine:latest`, installs Alpine's image-building tools,
+2. `iso` starts from Alpine `3.24.1`, installs Alpine's image-building tools,
    clones the matching Alpine `aports` branch, builds the custom ISO profile,
    and creates `/work/out/home-installer.iso`.
 3. `artifact` is a scratch stage containing only `/home-installer.iso`.
@@ -425,13 +425,16 @@ These commands intentionally do not run QEMU inside Docker. Docker remains the
 reproducible ISO/rootfs builder; QEMU runs on the developer's macOS host using
 the host's `qemu-system-x86_64` and `qemu-img` binaries.
 
-`make test` first builds the ISO, creates a fresh 8 GiB qcow2 disk at
-`dist/qemu/disk.qcow2`, copies a fresh UEFI variable store, and boots the ISO
-with:
+`make test` first checks for the required host QEMU tools, builds the ISO, and
+creates a fresh 8 GiB raw test disk at `dist/qemu/disk.img`. It extracts the
+official Alpine kernel and initramfs
+from that ISO and boots them directly with QEMU while attaching the ISO as
+read-only virtio installer media. This keeps the installer test focused on the
+live system and avoids a known interaction between Alpine's generated UEFI
+GRUB ISO path and the embedded `.apkovl` payload. The test uses:
 
 - x86_64 emulation;
-- UEFI firmware supplied through `OVMF_CODE` and `OVMF_VARS`;
-- a Q35 machine with two virtual CPUs and 2 GiB RAM;
+- a `pc` machine with four virtual CPUs and 1 GiB RAM;
 - a fixed 256 MiB swap partition, rather than the physical installer's 2×RAM
   policy;
 - a virtio target disk, which appears to the guest as `/dev/vda`;
@@ -454,33 +457,33 @@ registration, kernel-hook execution, EFI image creation, and EFI fallback/NVRAM
 handling as far as the virtual firmware permits.
 
 On successful installation, the live test service powers off the guest. The
-qcow2 disk and its UEFI variable store are retained so the installed system can
-be booted independently.
+raw disk is retained so the installed system can be booted independently.
 
 `make login` boots that retained disk without the installer ISO and connects
-the QEMU serial port to the terminal. The target rootfs has a serial tty
-auto-login entry for this purpose, so it should present a `josh` ash shell
-after the EFI boot path and root filesystem have been exercised.
+the QEMU serial port to the terminal. It uses the pinned OVMF firmware and
+boots the installed EFI-stub image, so this is the separate check of the
+installed UEFI path. If the variable store is absent, `make login` creates a
+fresh one from the pinned template. The target rootfs has a serial tty
+auto-login entry, so it should present a `josh` ash shell after the EFI boot
+path and root filesystem have been exercised.
 
 QEMU uses a pinned EDK2 OVMF nightly fetched by `fetch-edk2-ovmf.sh`. The script
-downloads the release archive only when the expected firmware and source marker
-are absent, and installs the x86_64 code and variable templates under
+verifies the archive's pinned SHA256 checksum, downloads it only when the
+verified archive and source marker are absent, and installs the x86_64 code and
+variable templates under
 `dist/qemu/firmware/edk2-ovmf-nightly/`. A local firmware pair under that path
 is preferred; otherwise, if it is not available, provide
 explicit paths:
 
 ```sh
-make test \
-  OVMF_CODE=/path/to/OVMF_CODE.fd \
-  OVMF_VARS=/path/to/OVMF_VARS.fd
-
 make login \
   OVMF_CODE=/path/to/OVMF_CODE.fd
 ```
 
-`make test` deliberately recreates the qcow2 disk and UEFI variable store on
-each run. The path is inside `dist/qemu/`, but it is still a destructive test
-operation against the previous test VM state. It does not touch physical disks.
+`make test` deliberately recreates the test disk on each run. The path is
+inside `dist/qemu/`, but it is still a destructive test operation against the
+previous test VM state. It does not touch physical disks. `make login` creates
+or reuses only the generated variable store in that same directory.
 
 The QEMU test does not validate real laptop hardware. It cannot establish that
 the installed machine has an Intel wireless adapter, that the adapter's

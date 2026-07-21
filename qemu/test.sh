@@ -2,10 +2,11 @@
 set -eu
 
 iso=${1:?ISO path is required}
-disk=${QEMU_DISK:-dist/qemu/disk.qcow2}
+disk=${QEMU_DISK:-dist/qemu/disk.img}
 vm_dir=${disk%/*}
 log="$vm_dir/test.log"
-vars="$vm_dir/OVMF_VARS.fd"
+kernel="$vm_dir/vmlinuz-lts"
+initrd="$vm_dir/initramfs-lts"
 
 require_command() {
     command -v "$1" >/dev/null 2>&1 || {
@@ -14,56 +15,15 @@ require_command() {
     }
 }
 
-find_file() {
-    for candidate do
-        [ -f "$candidate" ] && {
-            printf '%s\n' "$candidate"
-            return 0
-        }
-    done
-    return 1
-}
-
 require_command qemu-system-x86_64
 require_command qemu-img
+require_command bsdtar
 [ -f "$iso" ] || { echo "ISO not found: $iso" >&2; exit 1; }
 
-code=${OVMF_CODE:-}
-if [ -z "$code" ]; then
-    code=$(find_file \
-        $(find dist/qemu/firmware/edk2-ovmf-nightly -type f -path '*/x64/code.fd' -print -quit 2>/dev/null || true) \
-        $(find dist/qemu/firmware -type f -path '*/x64/code.fd' -print -quit 2>/dev/null || true) \
-        /opt/homebrew/share/qemu/edk2-x86_64-code.fd \
-        /opt/homebrew/share/qemu/OVMF_CODE.fd \
-        /usr/local/share/qemu/edk2-x86_64-code.fd \
-        /usr/local/share/qemu/OVMF_CODE.fd) || {
-        echo "OVMF_CODE is not set and no common UEFI firmware path was found" >&2
-        echo "Install UEFI firmware and run: make test OVMF_CODE=/path/to/code.fd OVMF_VARS=/path/to/vars.fd" >&2
-        exit 1
-    }
-fi
-[ -f "$code" ] || { echo "OVMF_CODE not found: $code" >&2; exit 1; }
-
-template=${OVMF_VARS:-}
-if [ -z "$template" ]; then
-    template=$(find_file \
-        $(find dist/qemu/firmware/edk2-ovmf-nightly -type f -path '*/x64/vars.fd' -print -quit 2>/dev/null || true) \
-        $(find dist/qemu/firmware -type f -path '*/x64/vars.fd' -print -quit 2>/dev/null || true) \
-        /opt/homebrew/share/qemu/edk2-i386-vars.fd \
-        /opt/homebrew/share/qemu/edk2-x86_64-vars.fd \
-        /opt/homebrew/share/qemu/OVMF_VARS.fd \
-        /usr/local/share/qemu/edk2-i386-vars.fd \
-        /usr/local/share/qemu/edk2-x86_64-vars.fd \
-        /usr/local/share/qemu/OVMF_VARS.fd) || {
-        echo "OVMF_VARS is not set and no common UEFI variable template was found" >&2
-        exit 1
-    }
-fi
-[ -f "$template" ] || { echo "OVMF_VARS not found: $template" >&2; exit 1; }
-
 mkdir -p "$vm_dir"
-rm -f "$disk" "$vars" "$log"
-cp "$template" "$vars"
+rm -f "$disk" "$kernel" "$initrd" "$log"
+bsdtar -xOf "$iso" boot/vmlinuz-lts > "$kernel"
+bsdtar -xOf "$iso" boot/initramfs-lts > "$initrd"
 qemu-img create -f raw "$disk" 8G >/dev/null
 
 echo "Booting the installer in QEMU..."
@@ -73,8 +33,9 @@ qemu-system-x86_64 \
     -cpu max \
     -m 1024 \
     -smp 4 \
-    -drive if=pflash,format=raw,readonly=on,file="$code" \
-    -drive if=pflash,format=raw,file="$vars" \
+    -kernel "$kernel" \
+    -initrd "$initrd" \
+    -append "console=ttyS0,115200 console=tty0 home_installer_qemu=1" \
     -drive if=none,id=installer,format=raw,readonly=on,file="$iso" \
     -device virtio-blk-pci,drive=installer \
     -drive if=none,id=target,format=raw,file="$disk" \

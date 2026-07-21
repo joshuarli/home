@@ -147,7 +147,7 @@ if [ "$is_qemu" != 1 ] && [ "$disk" = "$installer_disk" ]; then
     die "the installer disk cannot be selected"
 fi
 
-[ -b "/sys/block/${disk##*/}/dev" ] || die "target must be a whole disk: $disk"
+[ -d "/sys/block/${disk##*/}" ] || die "target must be a whole disk: $disk"
 if [ "$is_qemu" = 1 ]; then
     confirmation=$disk
 else

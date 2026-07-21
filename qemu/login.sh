@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-disk=${QEMU_DISK:-dist/qemu/disk.qcow2}
+disk=${QEMU_DISK:-dist/qemu/disk.img}
 vars="${disk%/*}/OVMF_VARS.fd"
 
 command -v qemu-system-x86_64 >/dev/null 2>&1 || {
@@ -23,7 +23,23 @@ if [ -z "$code" ]; then
     done
 fi
 [ -f "$code" ] || { echo "set OVMF_CODE to a UEFI firmware code image" >&2; exit 1; }
-[ -f "$vars" ] || { echo "QEMU variable store not found: $vars; run make test first" >&2; exit 1; }
+if [ ! -f "$vars" ]; then
+    vars_template=${OVMF_VARS:-}
+    if [ -z "$vars_template" ]; then
+        for candidate in \
+            $(find dist/qemu/firmware/edk2-ovmf-nightly -type f -path '*/x64/vars.fd' -print -quit 2>/dev/null || true) \
+            $(find dist/qemu/firmware -type f -path '*/x64/vars.fd' -print -quit 2>/dev/null || true) \
+            /opt/homebrew/share/qemu/edk2-i386-vars.fd \
+            /opt/homebrew/share/qemu/OVMF_VARS.fd \
+            /usr/local/share/qemu/edk2-i386-vars.fd \
+            /usr/local/share/qemu/OVMF_VARS.fd; do
+            [ -f "$candidate" ] && { vars_template=$candidate; break; }
+        done
+    fi
+    [ -f "$vars_template" ] || { echo "set OVMF_VARS to a UEFI variable-store template" >&2; exit 1; }
+    mkdir -p "${vars%/*}"
+    cp "$vars_template" "$vars"
+fi
 
 exec qemu-system-x86_64 \
     -machine pc,accel=tcg \
