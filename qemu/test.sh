@@ -62,7 +62,7 @@ fi
 mkdir -p "$vm_dir"
 rm -f "$disk" "$vars" "$log"
 cp "$template" "$vars"
-qemu-img create -f qcow2 "$disk" 8G >/dev/null
+qemu-img create -f raw "$disk" 8G >/dev/null
 
 echo "Booting the installer in QEMU..."
 qemu-system-x86_64 \
@@ -72,8 +72,10 @@ qemu-system-x86_64 \
     -smp 4 \
     -drive if=pflash,format=raw,readonly=on,file="$code" \
     -drive if=pflash,format=raw,file="$vars" \
-    -cdrom "$iso" \
-    -hda "$disk" \
+    -drive if=none,id=installer,format=raw,readonly=on,file="$iso" \
+    -device virtio-blk-pci,drive=installer \
+    -drive if=none,id=target,format=raw,file="$disk" \
+    -device virtio-blk-pci,drive=target \
     -netdev user,id=net0 \
     -device virtio-net-pci,netdev=net0 \
     -display none \

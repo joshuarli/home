@@ -31,7 +31,8 @@ exec qemu-system-x86_64 \
     -smp 4 \
     -drive if=pflash,format=raw,readonly=on,file="$code" \
     -drive if=pflash,format=raw,file="$vars" \
-    -hda "$disk" \
+    -drive if=none,id=target,format=raw,file="$disk" \
+    -device virtio-blk-pci,drive=target \
     -netdev user,id=net0 \
     -device virtio-net-pci,netdev=net0 \
     -display none \
