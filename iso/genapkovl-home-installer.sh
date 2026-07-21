@@ -81,7 +81,7 @@ start() {
     while [ ! -f /root/home-installer/install.sh ]; do
         sleep 1
     done
-    IS_QEMU=1 INSTALLER_DISK=/dev/vda QEMU_NET_IFACE= \
+    IS_QEMU=1 INSTALLER_DISK=/dev/vdb QEMU_NET_IFACE= \
         /root/home-installer/install.sh </dev/ttyS0 >/dev/ttyS0 2>&1 || return 1
     poweroff -f
 }

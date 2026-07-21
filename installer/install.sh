@@ -26,7 +26,7 @@ require_command() {
     command -v "$1" >/dev/null 2>&1 || die "required command is missing: $1"
 }
 
-for command in awk blkid blockdev chroot efibootmgr findmnt ip lsblk mkfs.ext4 mkfs.vfat mkswap nslookup sfdisk tar wipefs wpa_passphrase; do
+for command in awk blkid blockdev chroot efibootmgr findmnt ip lsblk mdev mkfs.ext4 mkfs.vfat mkswap nslookup partx sfdisk tar wipefs wpa_passphrase; do
     require_command "$command"
 done
 
@@ -124,15 +124,15 @@ fi
 
 echo "Available target disks:"
 candidate_count=0
-while read -r disk size model type; do
+while read -r disk size type; do
     [ "$type" = disk ] || continue
     if [ "$is_qemu" != 1 ] && [ "$disk" = "$installer_disk" ]; then
         continue
     fi
-    echo "  $disk $size $model"
+    echo "  $disk $size"
     candidate_count=$((candidate_count + 1))
 done <<EOF
-$(lsblk -dpno NAME,SIZE,MODEL,TYPE)
+$(lsblk -dpno NAME,SIZE,TYPE)
 EOF
 [ "$candidate_count" -gt 0 ] || die "no target disks found"
 
@@ -176,7 +176,9 @@ swap_start=$((swap_start / alignment * alignment))
 root_start=$((swap_start + swap_sectors))
 root_start=$((root_start + alignment - 1))
 root_start=$((root_start / alignment * alignment))
-root_sectors=$((disk_sectors - root_start))
+gpt_tail_sectors=34
+root_sectors=$((disk_sectors - gpt_tail_sectors - root_start))
+root_sectors=$((root_sectors / alignment * alignment))
 [ "$root_sectors" -gt $((1024 * 1024 * 1024 / sector_size)) ] || die "disk is too small for the requested layout"
 
 case "$disk" in
@@ -201,7 +203,12 @@ start=$swap_start, size=$swap_sectors, type=S, name="Alpine swap"
 start=$root_start, size=$root_sectors, type=L, name="Alpine root"
 EOF
 blockdev --rereadpt "$disk" 2>/dev/null || true
+partx -u "$disk" 2>/dev/null || true
+partx -a "$disk" 2>/dev/null || true
+sleep 1
+mdev -s
 sleep 2
+[ -b "$boot_partition" ] || die "partition devices did not appear after partitioning"
 
 mkfs.vfat -F 32 -n ALPINE_BOOT "$boot_partition"
 mkswap -L ALPINE_SWAP "$swap_partition"
@@ -253,7 +260,15 @@ chroot "$target" rc-update add networking boot
 if [ "$is_qemu" != 1 ]; then
     chroot "$target" rc-update add wpa_supplicant boot
 fi
-chroot "$target" apk fix kernel-hooks
+chroot "$target" apk fix linux-lts
+kernel_release=
+for module_dir in "$target"/lib/modules/*; do
+    [ -d "$module_dir" ] || continue
+    kernel_release=${module_dir##*/}
+    break
+done
+[ -n "$kernel_release" ] || die "installed kernel module directory is missing"
+chroot "$target" /usr/share/kernel-hooks.d/secureboot.hook lts "$kernel_release"
 
 uki=$(find "$target/boot" -type f -name '*.efi' | head -n 1)
 [ -n "$uki" ] || die "kernel hook did not generate an EFI image"

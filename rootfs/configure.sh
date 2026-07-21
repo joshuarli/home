@@ -64,6 +64,9 @@ EOF
 mkdir -p "$rootfs/etc/kernel-hooks.d"
 cat > "$rootfs/etc/kernel-hooks.d/secureboot.conf" <<'EOF'
 cmdline="console=ttyS0,115200 console=tty0 root=PARTUUID=INSTALLER_ROOT_PARTUUID rootfstype=ext4 rw"
+signing_disabled=yes
+output_dir="/boot/EFI/alpine"
+output_name="linux-{flavor}.efi"
 EOF
 
 sed -i '/^tty1::/d; /^tty[2-6]::/d' "$rootfs/etc/inittab"

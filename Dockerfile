@@ -33,7 +33,6 @@ COPY installer/install.sh /work/installer/install.sh
 COPY iso /work/iso
 COPY build/build-iso.sh /work/build-iso.sh
 RUN --mount=type=cache,target=/root/.abuild \
-    --mount=type=cache,target=/work/mkimage-work \
     chmod +x /work/installer/install.sh /work/iso/*.sh /work/build-iso.sh && /work/build-iso.sh
 
 FROM scratch AS artifact
