@@ -41,6 +41,12 @@ ifupdown-ng
 ifupdown-ng-wifi
 iproute2
 util-linux
+blkid
+findmnt
+lsblk
+partx
+sfdisk
+wipefs
 dosfstools
 e2fsprogs
 efibootmgr
@@ -48,7 +54,19 @@ tar
 gzip
 EOF
 
-makefile root:root 0755 "$tmp/root/home-installer/install.sh" < "$HOME_INSTALLER_INSTALL_SCRIPT"
+makefile root:root 0755 "$tmp/root/home-installer/install.sh" <<'EOF'
+#!/bin/sh
+set -eu
+
+for media in /media/cdrom /media/*; do
+    if [ -x "$media/home-installer/install.sh" ]; then
+        exec "$media/home-installer/install.sh" "$@"
+    fi
+done
+
+echo "home-installer install script is not available on the installer media" >&2
+exit 1
+EOF
 makefile root:root 0644 "$tmp/root/home-installer/rootfs.tar.gz" < "$HOME_INSTALLER_ROOTFS_ARCHIVE"
 
 rc_add devfs sysinit
@@ -73,7 +91,7 @@ makefile root:root 0755 "$tmp/etc/init.d/home-installer-qemu" <<'EOF'
 description="Run the installer automatically in QEMU smoke tests"
 
 depend() {
-    after modules bootmisc
+    after modloop modules bootmisc
 }
 
 start() {
@@ -86,6 +104,6 @@ start() {
     poweroff -f
 }
 EOF
-rc_add home-installer-qemu boot
+rc_add home-installer-qemu default
 
 tar -czf home-installer.apkovl.tar.gz -C "$tmp" etc root

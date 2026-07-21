@@ -6,7 +6,7 @@ ARG BUILDARCH
 ARG TARGETARCH
 ENV BUILDARCH=$BUILDARCH TARGETARCH=$TARGETARCH
 
-RUN apk add --no-cache apk-tools-static qemu-x86_64 tar gzip
+RUN apk add --no-cache apk-tools-static binutils kmod qemu-x86_64 tar gzip
 COPY rootfs-packages.txt /work/rootfs-packages.txt
 COPY rootfs/configure.sh /work/configure-rootfs.sh
 COPY build/build-rootfs.sh /work/build-rootfs.sh
@@ -29,11 +29,20 @@ FROM iso-tools AS iso
 
 COPY --from=rootfs /work/out/rootfs.tar.gz /work/rootfs.tar.gz
 COPY --from=aports /work/aports /work/aports
-COPY installer/install.sh /work/installer/install.sh
 COPY iso /work/iso
 COPY build/build-iso.sh /work/build-iso.sh
 RUN --mount=type=cache,target=/root/.abuild \
-    chmod +x /work/installer/install.sh /work/iso/*.sh /work/build-iso.sh && /work/build-iso.sh
+    chmod +x /work/iso/*.sh /work/build-iso.sh && /work/build-iso.sh
+
+FROM iso AS patched
+
+COPY installer/install.sh /work/installer/install.sh
+RUN chmod +x /work/installer/install.sh && \
+    xorriso -indev /work/out/home-installer.iso \
+        -outdev /work/out/home-installer-patched.iso \
+        -map /work/installer/install.sh /home-installer/install.sh \
+        -boot_image any replay \
+        -end
 
 FROM scratch AS artifact
-COPY --from=iso /work/out/home-installer.iso /home-installer.iso
+COPY --from=patched /work/out/home-installer-patched.iso /home-installer.iso

@@ -26,7 +26,7 @@ require_command() {
     command -v "$1" >/dev/null 2>&1 || die "required command is missing: $1"
 }
 
-for command in awk blkid blockdev chroot efibootmgr findmnt ip lsblk mdev mkfs.ext4 mkfs.vfat mkswap nslookup partx sfdisk tar wipefs wpa_passphrase; do
+for command in awk blkid blockdev chroot efibootmgr findmnt ip mdev mkfs.ext4 mkfs.vfat mkswap nslookup sfdisk tar wipefs wpa_passphrase; do
     require_command "$command"
 done
 
@@ -116,24 +116,23 @@ nslookup dl-cdn.alpinelinux.org >/dev/null 2>&1 || die "DNS verification failed"
 echo "Network preflight passed."
 
 installer_source=$(findmnt -no SOURCE /media/cdrom 2>/dev/null || true)
-installer_disk=
-if [ -n "$installer_source" ]; then
-    installer_parent=$(lsblk -no PKNAME "$installer_source" 2>/dev/null | head -n 1 || true)
-    installer_disk=${installer_parent:+/dev/$installer_parent}
-fi
+installer_disk=$installer_source
 
 echo "Available target disks:"
 candidate_count=0
-while read -r disk size type; do
-    [ "$type" = disk ] || continue
+for sys_disk in /sys/block/*; do
+    disk=/dev/${sys_disk##*/}
+    case "$disk" in
+        /dev/fd*|/dev/loop*|/dev/ram*|/dev/sr*) continue ;;
+    esac
+    [ -b "$disk" ] || continue
     if [ "$is_qemu" != 1 ] && [ "$disk" = "$installer_disk" ]; then
         continue
     fi
-    echo "  $disk $size"
+    size_bytes=$(blockdev --getsize64 "$disk")
+    echo "  $disk $size_bytes bytes"
     candidate_count=$((candidate_count + 1))
-done <<EOF
-$(lsblk -dpno NAME,SIZE,TYPE)
-EOF
+done
 [ "$candidate_count" -gt 0 ] || die "no target disks found"
 
 if [ "$is_qemu" = 1 ] && [ -n "${INSTALLER_DISK:-}" ]; then
@@ -148,8 +147,7 @@ if [ "$is_qemu" != 1 ] && [ "$disk" = "$installer_disk" ]; then
     die "the installer disk cannot be selected"
 fi
 
-disk_type=$(lsblk -dnpo TYPE "$disk")
-[ "$disk_type" = disk ] || die "target must be a whole disk: $disk"
+[ -b "/sys/block/${disk##*/}/dev" ] || die "target must be a whole disk: $disk"
 if [ "$is_qemu" = 1 ]; then
     confirmation=$disk
 else
@@ -203,8 +201,6 @@ start=$swap_start, size=$swap_sectors, type=S, name="Alpine swap"
 start=$root_start, size=$root_sectors, type=L, name="Alpine root"
 EOF
 blockdev --rereadpt "$disk" 2>/dev/null || true
-partx -u "$disk" 2>/dev/null || true
-partx -a "$disk" 2>/dev/null || true
 sleep 1
 mdev -s
 sleep 2
@@ -254,29 +250,15 @@ mount --make-rslave "$target/sys"
 mount --rbind /run "$target/run"
 mount --make-rslave "$target/run"
 
-root_partuuid=$(blkid -s PARTUUID -o value "$root_partition")
-sed -i "s/INSTALLER_ROOT_PARTUUID/$root_partuuid/" "$target/etc/kernel-hooks.d/secureboot.conf"
 chroot "$target" rc-update add networking boot
 if [ "$is_qemu" != 1 ]; then
     chroot "$target" rc-update add wpa_supplicant boot
 fi
-chroot "$target" apk fix linux-lts
-kernel_release=
-for module_dir in "$target"/lib/modules/*; do
-    [ -d "$module_dir" ] || continue
-    kernel_release=${module_dir##*/}
-    break
-done
-[ -n "$kernel_release" ] || die "installed kernel module directory is missing"
-chroot "$target" /usr/share/kernel-hooks.d/secureboot.hook lts "$kernel_release"
-
-uki=$(find "$target/boot" -type f -name '*.efi' | head -n 1)
-[ -n "$uki" ] || die "kernel hook did not generate an EFI image"
+[ -f "$target/boot/EFI/alpine/linux-lts.efi" ] || die "prebuilt EFI image is missing"
 mkdir -p "$target/boot/EFI/alpine" "$target/boot/EFI/BOOT"
-cp "$uki" "$target/boot/EFI/alpine/alpine.efi"
-cp "$uki" "$target/boot/EFI/BOOT/BOOTX64.EFI"
+cp "$target/boot/EFI/alpine/linux-lts.efi" "$target/boot/EFI/BOOT/BOOTX64.EFI"
 
-efibootmgr --disk "$disk" --part 1 --create --label Alpine --loader '\EFI\alpine\alpine.efi' || echo "WARNING: could not create NVRAM entry; fallback EFI path was installed"
+efibootmgr --disk "$disk" --part 1 --create --label Alpine --loader '\EFI\alpine\linux-lts.efi' || echo "WARNING: could not create NVRAM entry; fallback EFI path was installed"
 
 umount -R "$target/run"
 umount -R "$target/sys"

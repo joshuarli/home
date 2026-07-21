@@ -8,7 +8,6 @@ cp /work/iso/mkimg.home_installer.sh "$aports/scripts/mkimg.home_installer.sh"
 cp /work/iso/genapkovl-home-installer.sh "$aports/scripts/genapkovl-home-installer.sh"
 chmod +x "$aports/scripts/mkimg.home_installer.sh" "$aports/scripts/genapkovl-home-installer.sh"
 
-export HOME_INSTALLER_INSTALL_SCRIPT=/work/installer/install.sh
 export HOME_INSTALLER_ROOTFS_ARCHIVE=/work/rootfs.tar.gz
 mkdir -p /root/.abuild
 if ! find /root/.abuild -maxdepth 1 -type f -name '*.rsa' -print -quit | grep -q .; then

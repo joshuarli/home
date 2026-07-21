@@ -103,6 +103,11 @@ while kill -0 "$qemu_pid" 2>/dev/null; do
     sleep 1
 done
 
+if grep -q 'Installation complete\.' "$log" 2>/dev/null; then
+    echo "QEMU installer test passed. Disk left at $disk"
+    exit 0
+fi
+
 echo "QEMU exited before installation completed; serial log: $log" >&2
 tail -80 "$log" >&2 2>/dev/null || true
 exit 1
