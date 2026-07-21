@@ -13,6 +13,7 @@ command -v qemu-system-x86_64 >/dev/null 2>&1 || {
 code=${OVMF_CODE:-}
 if [ -z "$code" ]; then
     for candidate in \
+        $(find dist/qemu/firmware/edk2-ovmf-nightly -type f -path '*/x64/code.fd' -print -quit 2>/dev/null || true) \
         $(find dist/qemu/firmware -type f -path '*/x64/code.fd' -print -quit 2>/dev/null || true) \
         /opt/homebrew/share/qemu/edk2-x86_64-code.fd \
         /opt/homebrew/share/qemu/OVMF_CODE.fd \

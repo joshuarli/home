@@ -37,30 +37,6 @@ apk --root "$tmp" --initdb --no-cache --no-progress \
     add $runtime_packages
 rm -f "$tmp/sbin/init" "$tmp/sbin/switch_root"
 
-makefile root:root 0644 "$tmp/etc/apk/world" <<EOF
-alpine-base
-linux-lts
-linux-firmware-intel
-linux-firmware-i915
-wpa_supplicant
-wpa_supplicant-openrc
-ifupdown-ng
-ifupdown-ng-wifi
-iproute2
-util-linux
-blkid
-findmnt
-lsblk
-partx
-sfdisk
-wipefs
-dosfstools
-e2fsprogs
-efibootmgr
-tar
-gzip
-EOF
-
 makefile root:root 0755 "$tmp/root/home-installer/install.sh" <<'EOF'
 #!/bin/sh
 set -eu

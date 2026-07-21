@@ -31,6 +31,7 @@ require_command qemu-img
 code=${OVMF_CODE:-}
 if [ -z "$code" ]; then
     code=$(find_file \
+        $(find dist/qemu/firmware/edk2-ovmf-nightly -type f -path '*/x64/code.fd' -print -quit 2>/dev/null || true) \
         $(find dist/qemu/firmware -type f -path '*/x64/code.fd' -print -quit 2>/dev/null || true) \
         /opt/homebrew/share/qemu/edk2-x86_64-code.fd \
         /opt/homebrew/share/qemu/OVMF_CODE.fd \
@@ -46,6 +47,7 @@ fi
 template=${OVMF_VARS:-}
 if [ -z "$template" ]; then
     template=$(find_file \
+        $(find dist/qemu/firmware/edk2-ovmf-nightly -type f -path '*/x64/vars.fd' -print -quit 2>/dev/null || true) \
         $(find dist/qemu/firmware -type f -path '*/x64/vars.fd' -print -quit 2>/dev/null || true) \
         /opt/homebrew/share/qemu/edk2-i386-vars.fd \
         /opt/homebrew/share/qemu/edk2-x86_64-vars.fd \
