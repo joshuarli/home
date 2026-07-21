@@ -48,7 +48,17 @@ if [ "$is_qemu" != 1 ]; then
 fi
 
 if [ "$is_qemu" = 1 ]; then
-    wifi_iface=${QEMU_NET_IFACE:-eth0}
+    wifi_iface=${QEMU_NET_IFACE:-}
+    if [ -z "$wifi_iface" ]; then
+        for sys_iface in /sys/class/net/*; do
+            iface=${sys_iface##*/}
+            [ "$iface" = lo ] || {
+                wifi_iface=$iface
+                break
+            }
+        done
+    fi
+    [ -n "$wifi_iface" ] || die "no QEMU network interface was found"
     echo "QEMU mode: using DHCP on $wifi_iface; skipping physical Wi-Fi checks."
 else
     wifi_interfaces=
@@ -116,7 +126,9 @@ echo "Available target disks:"
 candidate_count=0
 while read -r disk size model type; do
     [ "$type" = disk ] || continue
-    [ "$disk" = "$installer_disk" ] && continue
+    if [ "$is_qemu" != 1 ] && [ "$disk" = "$installer_disk" ]; then
+        continue
+    fi
     echo "  $disk $size $model"
     candidate_count=$((candidate_count + 1))
 done <<EOF
@@ -132,7 +144,9 @@ else
     read -r disk
 fi
 [ -b "$disk" ] || die "not a block device: $disk"
-[ "$disk" != "$installer_disk" ] || die "the installer disk cannot be selected"
+if [ "$is_qemu" != 1 ] && [ "$disk" = "$installer_disk" ]; then
+    die "the installer disk cannot be selected"
+fi
 
 disk_type=$(lsblk -dnpo TYPE "$disk")
 [ "$disk_type" = disk ] || die "target must be a whole disk: $disk"

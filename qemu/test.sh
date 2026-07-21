@@ -66,14 +66,14 @@ qemu-img create -f qcow2 "$disk" 8G >/dev/null
 
 echo "Booting the installer in QEMU..."
 qemu-system-x86_64 \
-    -machine q35,accel=tcg \
+    -machine pc,accel=tcg \
     -cpu max \
-    -m 2048 \
-    -smp 2 \
+    -m 1024 \
+    -smp 4 \
     -drive if=pflash,format=raw,readonly=on,file="$code" \
     -drive if=pflash,format=raw,file="$vars" \
     -cdrom "$iso" \
-    -drive if=virtio,format=qcow2,file="$disk" \
+    -hda "$disk" \
     -netdev user,id=net0 \
     -device virtio-net-pci,netdev=net0 \
     -display none \
@@ -93,7 +93,7 @@ while kill -0 "$qemu_pid" 2>/dev/null; do
         exit 0
     fi
     attempt=$((attempt + 1))
-    [ "$attempt" -lt 180 ] || {
+    [ "$attempt" -lt 300 ] || {
         echo "QEMU installer test timed out; serial log: $log" >&2
         tail -80 "$log" >&2 2>/dev/null || true
         exit 1

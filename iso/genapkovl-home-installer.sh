@@ -21,7 +21,9 @@ rc_add() {
 tmp=$(mktemp -d)
 trap cleanup EXIT
 
-mkdir -p "$tmp/etc/apk" "$tmp/etc" "$tmp/root/home-installer"
+mkdir -p "$tmp/etc/apk/keys" "$tmp/etc" "$tmp/root/home-installer"
+
+makefile root:root 0644 "$tmp/etc/apk/keys/$(basename "$HOME_INSTALLER_APK_KEY")" < "$HOME_INSTALLER_APK_KEY"
 touch "$tmp/etc/.default_boot_services"
 
 makefile root:root 0644 "$tmp/etc/hostname" <<EOF
@@ -71,20 +73,19 @@ makefile root:root 0755 "$tmp/etc/init.d/home-installer-qemu" <<'EOF'
 description="Run the installer automatically in QEMU smoke tests"
 
 depend() {
-    need localmount
-    after bootmisc networking
+    after modules bootmisc
 }
 
 start() {
-    cat /sys/class/dmi/id/product_name /sys/class/dmi/id/sys_vendor 2>/dev/null | grep -q QEMU || return 0
+    grep -qw home_installer_qemu=1 /proc/cmdline || return 0
     while [ ! -f /root/home-installer/install.sh ]; do
         sleep 1
     done
-    IS_QEMU=1 INSTALLER_DISK=/dev/vda QEMU_NET_IFACE=eth0 \
+    IS_QEMU=1 INSTALLER_DISK=/dev/sda QEMU_NET_IFACE= \
         /root/home-installer/install.sh </dev/ttyS0 >/dev/ttyS0 2>&1 || return 1
     poweroff -f
 }
 EOF
-ln -sf /etc/init.d/home-installer-qemu "$tmp/etc/runlevels/default/home-installer-qemu"
+rc_add home-installer-qemu boot
 
 tar -czf home-installer.apkovl.tar.gz -C "$tmp" etc root

@@ -8,7 +8,7 @@ profile_home_installer() {
     image_ext="iso"
     output_format="iso"
     arch="x86_64"
-    kernel_cmdline="console=ttyS0,115200 console=tty0"
+    kernel_cmdline="modules=virtio,virtio_pci,virtio_blk,ata_piix,loop,squashfs,sd-mod,usb-storage console=ttyS0,115200 console=tty0 home_installer_qemu=1"
     kernel_flavors="lts"
     modloop_sign="no"
     kernel_addons=

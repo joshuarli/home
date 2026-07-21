@@ -25,13 +25,13 @@ fi
 [ -f "$vars" ] || { echo "QEMU variable store not found: $vars; run make test first" >&2; exit 1; }
 
 exec qemu-system-x86_64 \
-    -machine q35,accel=tcg \
+    -machine pc,accel=tcg \
     -cpu max \
-    -m 2048 \
-    -smp 2 \
+    -m 1024 \
+    -smp 4 \
     -drive if=pflash,format=raw,readonly=on,file="$code" \
     -drive if=pflash,format=raw,file="$vars" \
-    -drive if=virtio,format=qcow2,file="$disk" \
+    -hda "$disk" \
     -netdev user,id=net0 \
     -device virtio-net-pci,netdev=net0 \
     -display none \

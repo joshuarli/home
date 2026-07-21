@@ -2,19 +2,26 @@
 set -eu
 
 tag=$(cut -d. -f1,2 /etc/alpine-release)
-branch="$tag-stable"
 aports=/work/aports
 
-git clone --depth 1 --branch "$branch" https://gitlab.alpinelinux.org/alpine/aports.git "$aports"
-# apk 3.x removed --no-chown; the current mkimage script still passes it.
-sed -i 's/ --no-chown//' "$aports/scripts/mkimage.sh"
 cp /work/iso/mkimg.home_installer.sh "$aports/scripts/mkimg.home_installer.sh"
 cp /work/iso/genapkovl-home-installer.sh "$aports/scripts/genapkovl-home-installer.sh"
 chmod +x "$aports/scripts/mkimg.home_installer.sh" "$aports/scripts/genapkovl-home-installer.sh"
 
 export HOME_INSTALLER_INSTALL_SCRIPT=/work/installer/install.sh
 export HOME_INSTALLER_ROOTFS_ARCHIVE=/work/rootfs.tar.gz
-abuild-keygen -a -n
+mkdir -p /root/.abuild
+if ! find /root/.abuild -maxdepth 1 -type f -name '*.rsa' -print -quit | grep -q .; then
+    abuild-keygen -a -n
+fi
+. /etc/abuild.conf
+PACKAGER_PRIVKEY=$(find /root/.abuild -maxdepth 1 -type f -name '*.rsa' -print -quit)
+[ -n "$PACKAGER_PRIVKEY" ] || { echo "abuild did not create a signing key" >&2; exit 1; }
+PACKAGER_PUBKEY="$PACKAGER_PRIVKEY.pub"
+[ -f "$PACKAGER_PUBKEY" ] || { echo "abuild did not create a public signing key" >&2; exit 1; }
+export PACKAGER_PRIVKEY PACKAGER_PUBKEY
+cp "$PACKAGER_PUBKEY" /etc/apk/keys/
+export HOME_INSTALLER_APK_KEY="$PACKAGER_PUBKEY"
 mkdir -p /work/out /work/mkimage-work
 touch /work/.default_boot_services
 
