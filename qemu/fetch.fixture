@@ -1,0 +1,3500 @@
+===== identity and environment =====
+
+$ date -u
+<date>
+
+$ hostname
+home-installer
+
+$ id
+uid=0(root) gid=0(root)
+
+$ uname -a
+Linux home-installer 6.18.39-0-lts #1-Alpine SMP PREEMPT_DYNAMIC <timestamp> x86_64 Linux
+
+$ uptime
+<uptime>
+
+--- /etc/alpine-release ---
+3.24.1
+
+--- /etc/hostname ---
+home-installer
+
+--- /etc/os-release ---
+NAME="Alpine Linux"
+ID=alpine
+VERSION_ID=3.24.1
+PRETTY_NAME="Alpine Linux v3.24"
+HOME_URL="https://alpinelinux.org/"
+BUG_REPORT_URL="https://gitlab.alpinelinux.org/alpine/aports/-/issues"
+
+--- /etc/profile.d/home-installer.sh ---
+unavailable
+
+$ env
+RC_VERSION=0.63.2
+EINFO_LOG=home-installer-qemu
+SHLVL=4
+RC_RUNSCRIPT_PID=<pid>
+RC_CACHEDIR=/var/cache/rc
+RC_CMD=start
+RC_SVCNAME=home-installer-qemu
+IS_QEMU=1
+RC_BOOTLEVEL=boot
+TERM=linux
+RC_SERVICE=/etc/init.d/home-installer-qemu
+RC_UNAME=Linux
+SVCNAME=home-installer-qemu
+PATH=/usr/libexec/rc/sbin:/usr/libexec/rc/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+RC_PID=<pid>
+FETCH_FIXTURE=1
+RC_LIBEXECDIR=/usr/libexec/rc
+INSTALLER_DISK=/dev/vdb
+RC_SVCDIR=/run/openrc
+RC_OPENRC_PID=<pid>
+RC_TMPDIR=/run/openrc/tmp
+RC_DEFAULTLEVEL=default
+RC_RUNLEVEL=default
+PWD=/
+QEMU_NET_IFACE=
+
+===== boot and kernel =====
+
+--- /proc/cmdline ---
+console=ttyS0,115200 console=tty0 home_installer_qemu=1
+
+--- /proc/version ---
+Linux version 6.18.39-0-lts (buildozer@build-3-24-x86_64) (cc (Alpine 15.2.0) 15.2.0, GNU ld (GNU Binutils) 2.45.1) #1-Alpine SMP PREEMPT_DYNAMIC <timestamp>
+
+--- /proc/sys/kernel/tainted ---
+0
+
+$ dmesg
+[time] Linux version 6.18.39-0-lts (buildozer@build-3-24-x86_64) (cc (Alpine 15.2.0) 15.2.0, GNU ld (GNU Binutils) 2.45.1) #1-Alpine SMP PREEMPT_DYNAMIC <timestamp>
+[time] Command line: console=ttyS0,115200 console=tty0 home_installer_qemu=1
+[time] BIOS-provided physical RAM map:
+[time] BIOS-e820: [mem <address>-<address>] usable
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] BIOS-e820: [mem <address>-<address>] usable
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] NX (Execute Disable) protection: active
+[time] APIC: Static calls initialized
+[time] SMBIOS 2.8 present.
+[time] DMI: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.17.0-0-gb52ca86e094d-prebuilt.qemu.org 04/01/2014
+[time] DMI: Memory slots populated: 1/1
+[time] tsc: Fast TSC calibration using PIT
+[time] tsc: Detected <frequency> processor
+[time] e820: update [mem <address>-<address>] usable ==> reserved
+[time] e820: remove [mem <address>-<address>] usable
+[time] last_pfn = <address> max_arch_pfn = <address>
+[time] MTRR map: 4 entries (3 fixed + 1 variable; max 19), built from 8 variable MTRRs
+[time] x86/PAT: Configuration [0-7]: WB  WC  UC- UC  WB  WP  UC- WT
+[time] found SMP MP-table at [mem <address>-<address>]
+[time] Using GB pages for direct mapping
+[time] RAMDISK: [mem <address>-<address>]
+[time] ACPI: Early table checksum verification disabled
+[time] ACPI: RSDP <address> 000014 (v00 BOCHS )
+[time] ACPI: RSDT <address> 000034 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: FACP <address> 000074 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: DSDT <address> 0022A7 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: FACS <address> 000040
+[time] ACPI: APIC <address> 000090 (v03 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: HPET <address> 000038 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: WAET <address> 000028 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: Reserving FACP table memory at [mem <address>-<address>]
+[time] ACPI: Reserving DSDT table memory at [mem <address>-<address>]
+[time] ACPI: Reserving FACS table memory at [mem <address>-<address>]
+[time] ACPI: Reserving APIC table memory at [mem <address>-<address>]
+[time] ACPI: Reserving HPET table memory at [mem <address>-<address>]
+[time] ACPI: Reserving WAET table memory at [mem <address>-<address>]
+[time] No NUMA configuration found
+[time] Faking a node at [mem <address>-<address>]
+[time] NODE_DATA(0) allocated [mem <address>-<address>]
+[time] Zone ranges:
+[time]   DMA      [mem <address>-<address>]
+[time]   DMA32    [mem <address>-<address>]
+[time]   Normal   empty
+[time]   Device   empty
+[time] Movable zone start for each node
+[time] Early memory node ranges
+[time]   node   0: [mem <address>-<address>]
+[time]   node   0: [mem <address>-<address>]
+[time] Initmem setup node 0 [mem <address>-<address>]
+[time] On node 0, zone DMA: 1 pages in unavailable ranges
+[time] On node 0, zone DMA: 97 pages in unavailable ranges
+[time] On node 0, zone DMA32: 38 pages in unavailable ranges
+[time] ACPI: PM-Timer IO Port: <address>
+[time] ACPI: LAPIC_NMI (acpi_id[<address>] dfl dfl lint[<address>])
+[time] IOAPIC[0]: apic_id 0, version 32, address <address>, GSI 0-23
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 dfl dfl)
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 5 global_irq 5 high level)
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 high level)
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 10 global_irq 10 high level)
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 11 global_irq 11 high level)
+[time] ACPI: Using ACPI (MADT) for SMP configuration information
+[time] ACPI: HPET id: <address> base: <address>
+[time] CPU topo: Max. logical packages:   1
+[time] CPU topo: Max. logical dies:       1
+[time] CPU topo: Max. dies per package:   1
+[time] CPU topo: Max. threads per core:   1
+[time] CPU topo: Num. cores per package:     4
+[time] CPU topo: Num. threads per package:   4
+[time] CPU topo: Allowing 4 present CPUs plus 0 hotplug CPUs
+[time] PM: hibernation: Registered nosave memory: [mem <address>-<address>]
+[time] PM: hibernation: Registered nosave memory: [mem <address>-<address>]
+[time] [mem <address>-<address>] available for PCI devices
+[time] Booting paravirtualized kernel on bare hardware
+[time] clocksource: refined-jiffies: mask: <address> max_cycles: <address>, max_idle_ns: 1910969940391419 ns
+[time] setup_percpu: NR_CPUS:256 nr_cpumask_bits:4 nr_cpu_ids:4 nr_node_ids:1
+[time] percpu: Embedded 57 pages/cpu s192536 r8192 d32744 u524288
+[time] pcpu-alloc: s192536 r8192 d32744 u524288 alloc=1*2097152
+[time] pcpu-alloc: [0] 0 1 2 3
+[time] Kernel command line: console=ttyS0,115200 console=tty0 home_installer_qemu=1
+[time] Unknown kernel command line parameters "home_installer_qemu=1", will be passed to user space.
+[time] random: crng init done
+[time] printk: log buffer data + meta data: 131072 + 458752 = 589824 bytes
+[time] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[time] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[time] Fallback order for Node 0: 0
+[time] Built 1 zonelists, mobility grouping on.  Total pages: 262008
+[time] Policy zone: DMA32
+[time] mem auto-init: stack:all(zero), heap alloc:on, heap free:off
+[time] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+[time] kmemleak: Kernel memory leak detector disabled
+[time] ftrace: allocating 46133 entries in 182 pages
+[time] ftrace: allocated 182 pages with 5 groups
+[time] Dynamic Preempt: voluntary
+[time] rcu: Preemptible hierarchical RCU implementation.
+[time] rcu: 	RCU restricting CPUs from NR_CPUS=256 to nr_cpu_ids=4.
+[time] 	Trampoline variant of Tasks RCU enabled.
+[time] 	Rude variant of Tasks RCU enabled.
+[time] 	Tracing variant of Tasks RCU enabled.
+[time] rcu: RCU calculated value of scheduler-enlistment delay is 100 jiffies.
+[time] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4
+[time] RCU Tasks: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[time] RCU Tasks Rude: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[time] RCU Tasks Trace: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[time] NR_IRQS: 16640, nr_irqs: 456, preallocated irqs: 16
+[time] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[time] clocksource: jiffies: mask: <address> max_cycles: <address>, max_idle_ns: 1911260446275000 ns
+[time] kfence: initialized - using 2097152 bytes for 255 objects at 0x(____ptrval____)-0x(____ptrval____)
+[time] Console: colour VGA+ 8<address>
+[time] printk: legacy console [tty0] enabled
+[time] printk: legacy console [ttyS0] enabled
+[time] ACPI: Core revision 20250807
+[time] clocksource: hpet: mask: <address> max_cycles: <address>, max_idle_ns: 19112604467 ns
+[time] APIC: Switch to symmetric I/O mode setup
+[time] x2apic: IRQ remapping doesn't support X2APIC mode
+[time] ..TIMER: vector=<address> apic1=0 pin1=2 apic2=-1 pin2=-1
+[time] clocksource: tsc-early: <calibration>
+[time] Calibrating delay loop <calibration>
+[time] x86/cpu: User Mode Instruction Prevention (UMIP) activated
+[time] Last level iTLB entries: 4KB 0, 2MB 0, 4MB 0
+[time] Last level dTLB entries: 4KB 0, 2MB 0, 4MB 0, 1GB 0
+[time] mitigations: Enabled attack vectors: user_kernel, user_user, guest_host, guest_guest, SMT mitigations: auto
+[time] Speculative Store Bypass: Vulnerable
+[time] Spectre V2 : Mitigation: Retpolines
+[time] Spectre V1 : Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+[time] Spectre V2 : Spectre v2 / SpectreRSB: Filling RSB on context switch and VMEXIT
+[time] x86/fpu: Supporting XSAVE feature <address>: 'x87 floating point registers'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'SSE registers'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'AVX registers'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'MPX bounds registers'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'MPX CSR'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'Protection Keys User registers'
+[time] x86/fpu: xstate_offset[2]:  576, xstate_sizes[2]:  256
+[time] x86/fpu: xstate_offset[3]:  960, xstate_sizes[3]:   64
+[time] x86/fpu: xstate_offset[4]: 1024, xstate_sizes[4]:   64
+[time] x86/fpu: xstate_offset[9]: 2688, xstate_sizes[9]:    8
+[time] x86/fpu: Enabled xstate features <address>, context size is 2696 bytes, using 'standard' format.
+[time] Freeing SMP alternatives memory: 44K
+[time] pid_max: default: 32768 minimum: 301
+[time] LSM: initializing lsm=lockdown,capability,landlock,yama
+[time] landlock: Up and running.
+[time] Yama: becoming mindful.
+[time] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[time] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[time] smpboot: CPU0: AMD QEMU TCG CPU version 2.5+ (family: <address>, model: <address>, stepping: <address>)
+[time] Performance Events: PMU not available due to virtualization, using software events only.
+[time] signal: max sigframe size: 3632
+[time] rcu: Hierarchical SRCU implementation.
+[time] rcu: 	Max phase no-delay instances is 400.
+[time] Timer migration: 1 hierarchy levels; 8 children per group; 1 crossnode level
+[time] NMI watchdog: Perf NMI watchdog permanently disabled
+[time] smp: Bringing up secondary CPUs ...
+[time] smpboot: x86: Booting SMP configuration:
+[time] .... node  #0, CPUs:      #1 #2 #3
+[time] smp: Brought up 1 node, 4 CPUs
+[time] smpboot: Total of 4 processors activated (<bogomips> BogoMIPS)
+[time] Memory: <memory>
+[time] devtmpfs: initialized
+[time] x86/mm: Memory block size: 128MB
+[time] posixtimers hash table entries: 2048 (order: 3, 32768 bytes, linear)
+[time] futex hash table entries: 1024 (65536 bytes on 1 NUMA nodes, total 64 KiB, linear).
+[time] pinctrl core: initialized pinctrl subsystem
+[time] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[time] audit: initializing netlink subsys (disabled)
+[time] audit: type=2000 audit(<event>:1): state=initialized audit_enabled=0 res=1
+[time] thermal_sys: Registered thermal governor 'fair_share'
+[time] thermal_sys: Registered thermal governor 'bang_bang'
+[time] thermal_sys: Registered thermal governor 'step_wise'
+[time] thermal_sys: Registered thermal governor 'user_space'
+[time] cpuidle: using governor ladder
+[time] cpuidle: using governor menu
+[time] acpiphp: ACPI Hot Plug PCI Controller Driver version: 0.5
+[time] PCI: Using configuration type 1 for base access
+[time] mtrr: your CPUs had inconsistent fixed MTRR settings
+[time] mtrr: your CPUs had inconsistent variable MTRR settings
+[time] mtrr: your CPUs had inconsistent MTRRdefType settings
+[time] mtrr: probably your BIOS does not setup all CPUs.
+[time] mtrr: corrected configuration.
+[time] kprobes: kprobe jump-optimization is enabled. All kprobes are optimized if possible.
+[time] HugeTLB: registered 1.00 GiB page size, pre-allocated 0 pages
+[time] HugeTLB: 16380 KiB vmemmap can be freed for a 1.00 GiB page
+[time] HugeTLB: registered 2.00 MiB page size, pre-allocated 0 pages
+[time] HugeTLB: 28 KiB vmemmap can be freed for a 2.00 MiB page
+[time] ACPI: Added _OSI(Module Device)
+[time] ACPI: Added _OSI(Processor Device)
+[time] ACPI: Added _OSI(Processor Aggregator Device)
+[time] ACPI: 1 ACPI AML tables successfully acquired and loaded
+[time] ACPI: Interpreter enabled
+[time] ACPI: PM: (supports S0 S3 S4 S5)
+[time] ACPI: Using IOAPIC for interrupt routing
+[time] PCI: Using host bridge windows from ACPI; if necessary, use "pci=nocrs" and report a bug
+[time] PCI: Using E820 reservations for host bridge windows
+[time] ACPI: Enabled 2 GPEs in block 00 to 0F
+[time] ACPI: PCI Root Bridge [PCI0] (domain 0000 [bus 00-ff])
+[time] acpi PNP0A03:00: _OSC: OS supports [ASPM ClockPM Segments MSI HPX-Type3]
+[time] acpi PNP0A03:00: _OSC: not requesting OS control; OS requires [ExtendedConfig ASPM ClockPM MSI]
+[time] acpi PNP0A03:00: fail to add MMCONFIG information, can't access extended configuration space under this bridge
+[time] acpiphp: Slot [3] registered
+[time] acpiphp: Slot [4] registered
+[time] acpiphp: Slot [5] registered
+[time] acpiphp: Slot [6] registered
+[time] acpiphp: Slot [7] registered
+[time] acpiphp: Slot [8] registered
+[time] acpiphp: Slot [9] registered
+[time] acpiphp: Slot [10] registered
+[time] acpiphp: Slot [11] registered
+[time] acpiphp: Slot [12] registered
+[time] acpiphp: Slot [13] registered
+[time] acpiphp: Slot [14] registered
+[time] acpiphp: Slot [15] registered
+[time] acpiphp: Slot [16] registered
+[time] acpiphp: Slot [17] registered
+[time] acpiphp: Slot [18] registered
+[time] acpiphp: Slot [19] registered
+[time] acpiphp: Slot [20] registered
+[time] acpiphp: Slot [21] registered
+[time] acpiphp: Slot [22] registered
+[time] acpiphp: Slot [23] registered
+[time] acpiphp: Slot [24] registered
+[time] acpiphp: Slot [25] registered
+[time] acpiphp: Slot [26] registered
+[time] acpiphp: Slot [27] registered
+[time] acpiphp: Slot [28] registered
+[time] acpiphp: Slot [29] registered
+[time] acpiphp: Slot [30] registered
+[time] acpiphp: Slot [31] registered
+[time] PCI host bridge to bus 0000:00
+[time] pci_bus 0000:00: root bus resource [io  <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [io  <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [mem <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [mem <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [mem <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [bus 00-ff]
+[time] pci 0000:00:00.0: [8086:1237] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.0: [8086:7000] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.1: [8086:7010] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.1: BAR 4 [io  <address>-<address>]
+[time] pci 0000:00:01.1: BAR 0 [io  <address>-<address>]: legacy IDE quirk
+[time] pci 0000:00:01.1: BAR 1 [io  <address>]: legacy IDE quirk
+[time] pci 0000:00:01.1: BAR 2 [io  <address>-<address>]: legacy IDE quirk
+[time] pci 0000:00:01.1: BAR 3 [io  <address>]: legacy IDE quirk
+[time] pci 0000:00:01.3: [8086:7113] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.3: quirk: [io  <address>-<address>] claimed by PIIX4 ACPI
+[time] pci 0000:00:01.3: quirk: [io  <address>-<address>] claimed by PIIX4 SMB
+[time] pci 0000:00:02.0: [1234:1111] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:02.0: BAR 0 [mem <address>-<address> pref]
+[time] pci 0000:00:02.0: BAR 2 [mem <address>-<address>]
+[time] pci 0000:00:02.0: ROM [mem <address>-<address> pref]
+[time] pci 0000:00:02.0: Video device with shadowed ROM at [mem <address>-<address>]
+[time] pci 0000:00:03.0: [1af4:1001] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:03.0: BAR 0 [io  <address>-<address>]
+[time] pci 0000:00:03.0: BAR 1 [mem <address>-<address>]
+[time] pci 0000:00:03.0: BAR 4 [mem <address>-<address> 64bit pref]
+[time] pci 0000:00:04.0: [1af4:1001] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:04.0: BAR 0 [io  <address>-<address>]
+[time] pci 0000:00:04.0: BAR 1 [mem <address>-<address>]
+[time] pci 0000:00:04.0: BAR 4 [mem <address>-<address> 64bit pref]
+[time] pci 0000:00:05.0: [1af4:1000] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:05.0: BAR 0 [io  <address>-<address>]
+[time] pci 0000:00:05.0: BAR 1 [mem <address>-<address>]
+[time] pci 0000:00:05.0: BAR 4 [mem <address>-<address> 64bit pref]
+[time] pci 0000:00:05.0: ROM [mem <address>-<address> pref]
+[time] ACPI: PCI: Interrupt link LNKA configured for IRQ 10
+[time] ACPI: PCI: Interrupt link LNKB configured for IRQ 10
+[time] ACPI: PCI: Interrupt link LNKC configured for IRQ 11
+[time] ACPI: PCI: Interrupt link LNKD configured for IRQ 11
+[time] ACPI: PCI: Interrupt link LNKS configured for IRQ 9
+[time] iommu: Default domain type: Translated
+[time] iommu: DMA domain TLB invalidation policy: lazy mode
+[time] pps_core: LinuxPPS API ver. 1 registered
+[time] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[time] PTP clock support registered
+[time] EDAC MC: Ver: 3.0.0
+[time] PCI: Using ACPI for IRQ routing
+[time] PCI: pci_cache_line_size set to 64 bytes
+[time] e820: reserve RAM buffer [mem <address>-<address>]
+[time] e820: reserve RAM buffer [mem <address>-<address>]
+[time] pci 0000:00:02.0: vgaarb: setting as boot VGA device
+[time] pci 0000:00:02.0: vgaarb: bridge control possible
+[time] pci 0000:00:02.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
+[time] vgaarb: loaded
+[time] hpet0: at MMIO <address>, IRQs 2, 8, 0
+[time] hpet0: 3 comparators, 64-bit 100.000000 MHz counter
+[time] clocksource: Switched to clocksource tsc-early
+[time] VFS: Disk quotas dquot_6.6.0
+[time] VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
+[time] pnp: PnP ACPI init
+[time] pnp 00:02: [dma 2]
+[time] pnp: PnP ACPI: found 6 devices
+[time] clocksource: acpi_pm: mask: <address> max_cycles: <address>, max_idle_ns: 2085701024 ns
+[time] NET: Registered PF_INET protocol family
+[time] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[time] tcp_listen_portaddr_hash hash table entries: 512 (order: 1, 8192 bytes, linear)
+[time] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[time] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[time] TCP bind hash table entries: 8192 (order: 6, 262144 bytes, linear)
+[time] TCP: Hash tables configured (established 8192 bind 8192)
+[time] MPTCP token hash table entries: 1024 (order: 3, 24576 bytes, linear)
+[time] UDP hash table entries: 512 (order: 3, 32768 bytes, linear)
+[time] UDP-Lite hash table entries: 512 (order: 3, 32768 bytes, linear)
+[time] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[time] NET: Registered PF_XDP protocol family
+[time] pci_bus 0000:00: resource 4 [io  <address>-<address> window]
+[time] pci_bus 0000:00: resource 5 [io  <address>-<address> window]
+[time] pci_bus 0000:00: resource 6 [mem <address>-<address> window]
+[time] pci_bus 0000:00: resource 7 [mem <address>-<address> window]
+[time] pci_bus 0000:00: resource 8 [mem <address>-<address> window]
+[time] pci 0000:00:01.0: PIIX3: Enabling Passive Release
+[time] pci 0000:00:00.0: Limiting direct PCI/PCI transfers
+[time] PCI: CLS 0 bytes, default 64
+[time] Trying to unpack rootfs image as initramfs...
+[time] Initialise system trusted keyrings
+[time] workingset: timestamp_bits=40 max_order=18 bucket_order=0
+[time] Key type asymmetric registered
+[time] Asymmetric key parser 'x509' registered
+[time] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 245)
+[time] io scheduler mq-deadline registered
+[time] io scheduler kyber registered
+[time] io scheduler bfq registered
+[time] ERST DBG: ERST support is disabled.
+[time] Serial: 8250/16550 driver, 4 ports, IRQ sharing enabled
+[time] 00:04: ttyS0 at I/O <address> (irq = 4, base_baud = 115200) is a 16550A
+[time] Linux agpgart interface v0.103
+[time] ACPI: bus type drm_connector registered
+[time] brd: module loaded
+[time] i8042: PNP: PS/2 Controller [PNP0303:KBD,PNP0f13:MOU] at <address>,<address> irq 1,12
+[time] serio: i8042 KBD port at <address>,<address> irq 1
+[time] serio: i8042 AUX port at <address>,<address> irq 12
+[time] rtc_cmos 00:05: RTC can wake from S4
+[time] rtc_cmos 00:05: registered as rtc0
+[time] rtc_cmos <system clock>
+[time] rtc_cmos 00:05: alarms up to one day, y3k, 242 bytes nvram, hpet irqs
+[time] amd_pstate: the _CPC object is not present in SBIOS or ACPI disabled
+[time] gre: GRE over IPv4 demultiplexer driver
+[time] NET: Registered PF_INET6 protocol family
+[time] Segment Routing with IPv6
+[time] In-situ OAM (IOAM) with IPv6
+[time] can: controller area network core
+[time] NET: Registered PF_CAN protocol family
+[time] Key type dns_resolver registered
+[time] IPI shorthand broadcast: enabled
+[time] sched_clock: <calibration>
+[time] registered taskstats version 1
+[time] Loading compiled-in X.509 certificates
+[time] tsc: Refined TSC clocksource calibration: 1000.000 MHz
+[time] clocksource: tsc: mask: <address> max_cycles: <address>, max_idle_ns: 881590591483 ns
+[time] clocksource: Switched to clocksource tsc
+[time] Freeing initrd memory: 21960K
+[time] Loaded X.509 cert 'alpinelinux.org: Alpine Linux kernel key: d76a695f66ad9cd28f5c22a8508f36e91f521f7a'
+[time] Demotion targets for Node 0: null
+[time] Key type .fscrypt registered
+[time] Key type fscrypt-provisioning registered
+[time] clk: Disabling unused clocks
+[time] PM: genpd: Disabling unused power domains
+[time] Freeing unused kernel image (initmem) memory: 3832K
+[time] Write protecting the kernel read-only data: 28672k
+[time] Freeing unused kernel image (text/rodata gap) memory: 68K
+[time] Freeing unused kernel image (rodata/data gap) memory: 1016K
+[time] Run /init as init process
+[time]   with arguments:
+[time]     /init
+[time]   with environment:
+[time]     HOME=/
+[time]     TERM=linux
+[time]     home_installer_qemu=1
+[time] Alpine Init 3.14.0-r0
+[time] Loading boot drivers...
+[time] loop: module loaded
+[time] squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[time] Loading boot drivers: ok.
+[time] Mounting boot media...
+[time] ACPI: \_SB_.LNKC: Enabled at IRQ 11
+[time] ACPI: \_SB_.LNKD: Enabled at IRQ 10
+[time] ACPI: \_SB_.LNKA: Enabled at IRQ 10
+[time] SCSI subsystem initialized
+[time] libata version 3.00 loaded.
+[time] scsi host0: ata_piix
+[time] scsi host1: ata_piix
+[time] ata1: PATA max MWDMA2 cmd <address> ctl <address> bmdma <address> irq 14 lpm-pol 0
+[time] ata2: PATA max MWDMA2 cmd <address> ctl <address> bmdma <address> irq 15 lpm-pol 0
+[time] ata2: found unknown device (class 0)
+[time] ata2.00: ATAPI: QEMU DVD-ROM, 2.5+, max UDMA/100
+[time] scsi 1:0:0:0: CD-ROM            QEMU     QEMU DVD-ROM     2.5+ PQ: 0 ANSI: 5
+[time] virtio_blk virtio0: 4/0/0 default/read/poll queues
+[time] virtio_blk virtio0: [vda] 2232960 512-byte logical blocks (1.14 GB/1.06 GiB)
+[time]  vda: vda1 vda2
+[time] virtio_blk virtio1: 4/0/0 default/read/poll queues
+[time] virtio_blk virtio1: [vdb] 16777216 512-byte logical blocks (8.59 GB/8.00 GiB)
+[time] sr 1:0:0:0: [sr0] scsi3-mmc drive: 4x/4x cd/rw xa/form2 tray
+[time] cdrom: Uniform CD-ROM driver Revision: 3.20
+[time] sr 1:0:0:0: Attached scsi CD-ROM sr0
+[time] block sr0: the capability attribute has been deprecated.
+[time] ISO 9660 Extensions: RRIP_1991A
+[time] Mounting boot media: ok.
+[time] Loading user settings from /media/vda/home-installer.apkovl.tar.gz...
+[time] Loading user settings from /media/vda/home-installer.apkovl.tar.gz: ok.
+[time] Installing packages to root filesystem...
+[time] Installing packages to root filesystem: ok.
+[time] loop0: detected capacity change from 0 to 655152
+[time] ACPI: button: Power Button [PWRF]
+[time] parport_pc 00:03: reported by Plug and Play ACPI
+[time] parport0: PC-style at <address>, irq 7 [PCSPP(,...)]
+[time] Floppy drive(s): fd0 is 2.88M AMI BIOS
+[time] FDC 0 is a S82078B
+[time] bochs-drm 0000:00:02.0: vgaarb: deactivate vga console
+[time] Console: switching to colour dummy device 8<address>
+[time] [drm] Found bochs VGA, ID <address>.
+[time] [drm] Framebuffer size 16384 kB @ <address>, mmio @ <address>.
+[time] [drm] Initialized bochs-drm 1.0.0 for 0000:00:02.0 on minor 0
+[time] fbcon: bochs-drmdrmfb (fb0) is primary device
+[time] Console: switching to colour frame buffer device 16<address>
+[time] bochs-drm 0000:00:02.0: [drm] fb0: bochs-drmdrmfb frame buffer device
+[time] piix4_smbus 0000:00:01.3: SMBus Host Controller at <address>, revision 0
+[time] i2c i2c-0: Memory type <address> not supported yet, not instantiating SPD
+[time] mousedev: PS/2 mouse device common for all mice
+[time] NET: Registered PF_PACKET protocol family
+
+--- /var/log/messages ---
+<syslog> syslog.info syslogd started: BusyBox v1.37.0
+<syslog> daemon.info init: starting pid <pid>, tty '': '/sbin/openrc default'
+<syslog> daemon.err networking[<pid>]: ERROR: networking failed to start
+
+--- /var/log/dmesg ---
+[time] Linux version 6.18.39-0-lts (buildozer@build-3-24-x86_64) (cc (Alpine 15.2.0) 15.2.0, GNU ld (GNU Binutils) 2.45.1) #1-Alpine SMP PREEMPT_DYNAMIC <timestamp>
+[time] Command line: console=ttyS0,115200 console=tty0 home_installer_qemu=1
+[time] BIOS-provided physical RAM map:
+[time] BIOS-e820: [mem <address>-<address>] usable
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] BIOS-e820: [mem <address>-<address>] usable
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] BIOS-e820: [mem <address>-<address>] reserved
+[time] NX (Execute Disable) protection: active
+[time] APIC: Static calls initialized
+[time] SMBIOS 2.8 present.
+[time] DMI: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.17.0-0-gb52ca86e094d-prebuilt.qemu.org 04/01/2014
+[time] DMI: Memory slots populated: 1/1
+[time] tsc: Fast TSC calibration using PIT
+[time] tsc: Detected <frequency> processor
+[time] e820: update [mem <address>-<address>] usable ==> reserved
+[time] e820: remove [mem <address>-<address>] usable
+[time] last_pfn = <address> max_arch_pfn = <address>
+[time] MTRR map: 4 entries (3 fixed + 1 variable; max 19), built from 8 variable MTRRs
+[time] x86/PAT: Configuration [0-7]: WB  WC  UC- UC  WB  WP  UC- WT
+[time] found SMP MP-table at [mem <address>-<address>]
+[time] Using GB pages for direct mapping
+[time] RAMDISK: [mem <address>-<address>]
+[time] ACPI: Early table checksum verification disabled
+[time] ACPI: RSDP <address> 000014 (v00 BOCHS )
+[time] ACPI: RSDT <address> 000034 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: FACP <address> 000074 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: DSDT <address> 0022A7 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: FACS <address> 000040
+[time] ACPI: APIC <address> 000090 (v03 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: HPET <address> 000038 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: WAET <address> 000028 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[time] ACPI: Reserving FACP table memory at [mem <address>-<address>]
+[time] ACPI: Reserving DSDT table memory at [mem <address>-<address>]
+[time] ACPI: Reserving FACS table memory at [mem <address>-<address>]
+[time] ACPI: Reserving APIC table memory at [mem <address>-<address>]
+[time] ACPI: Reserving HPET table memory at [mem <address>-<address>]
+[time] ACPI: Reserving WAET table memory at [mem <address>-<address>]
+[time] No NUMA configuration found
+[time] Faking a node at [mem <address>-<address>]
+[time] NODE_DATA(0) allocated [mem <address>-<address>]
+[time] Zone ranges:
+[time]   DMA      [mem <address>-<address>]
+[time]   DMA32    [mem <address>-<address>]
+[time]   Normal   empty
+[time]   Device   empty
+[time] Movable zone start for each node
+[time] Early memory node ranges
+[time]   node   0: [mem <address>-<address>]
+[time]   node   0: [mem <address>-<address>]
+[time] Initmem setup node 0 [mem <address>-<address>]
+[time] On node 0, zone DMA: 1 pages in unavailable ranges
+[time] On node 0, zone DMA: 97 pages in unavailable ranges
+[time] On node 0, zone DMA32: 38 pages in unavailable ranges
+[time] ACPI: PM-Timer IO Port: <address>
+[time] ACPI: LAPIC_NMI (acpi_id[<address>] dfl dfl lint[<address>])
+[time] IOAPIC[0]: apic_id 0, version 32, address <address>, GSI 0-23
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 dfl dfl)
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 5 global_irq 5 high level)
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 high level)
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 10 global_irq 10 high level)
+[time] ACPI: INT_SRC_OVR (bus 0 bus_irq 11 global_irq 11 high level)
+[time] ACPI: Using ACPI (MADT) for SMP configuration information
+[time] ACPI: HPET id: <address> base: <address>
+[time] CPU topo: Max. logical packages:   1
+[time] CPU topo: Max. logical dies:       1
+[time] CPU topo: Max. dies per package:   1
+[time] CPU topo: Max. threads per core:   1
+[time] CPU topo: Num. cores per package:     4
+[time] CPU topo: Num. threads per package:   4
+[time] CPU topo: Allowing 4 present CPUs plus 0 hotplug CPUs
+[time] PM: hibernation: Registered nosave memory: [mem <address>-<address>]
+[time] PM: hibernation: Registered nosave memory: [mem <address>-<address>]
+[time] [mem <address>-<address>] available for PCI devices
+[time] Booting paravirtualized kernel on bare hardware
+[time] clocksource: refined-jiffies: mask: <address> max_cycles: <address>, max_idle_ns: 1910969940391419 ns
+[time] setup_percpu: NR_CPUS:256 nr_cpumask_bits:4 nr_cpu_ids:4 nr_node_ids:1
+[time] percpu: Embedded 57 pages/cpu s192536 r8192 d32744 u524288
+[time] pcpu-alloc: s192536 r8192 d32744 u524288 alloc=1*2097152
+[time] pcpu-alloc: [0] 0 1 2 3
+[time] Kernel command line: console=ttyS0,115200 console=tty0 home_installer_qemu=1
+[time] Unknown kernel command line parameters "home_installer_qemu=1", will be passed to user space.
+[time] random: crng init done
+[time] printk: log buffer data + meta data: 131072 + 458752 = 589824 bytes
+[time] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[time] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[time] Fallback order for Node 0: 0
+[time] Built 1 zonelists, mobility grouping on.  Total pages: 262008
+[time] Policy zone: DMA32
+[time] mem auto-init: stack:all(zero), heap alloc:on, heap free:off
+[time] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+[time] kmemleak: Kernel memory leak detector disabled
+[time] ftrace: allocating 46133 entries in 182 pages
+[time] ftrace: allocated 182 pages with 5 groups
+[time] Dynamic Preempt: voluntary
+[time] rcu: Preemptible hierarchical RCU implementation.
+[time] rcu: 	RCU restricting CPUs from NR_CPUS=256 to nr_cpu_ids=4.
+[time] 	Trampoline variant of Tasks RCU enabled.
+[time] 	Rude variant of Tasks RCU enabled.
+[time] 	Tracing variant of Tasks RCU enabled.
+[time] rcu: RCU calculated value of scheduler-enlistment delay is 100 jiffies.
+[time] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4
+[time] RCU Tasks: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[time] RCU Tasks Rude: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[time] RCU Tasks Trace: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[time] NR_IRQS: 16640, nr_irqs: 456, preallocated irqs: 16
+[time] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[time] clocksource: jiffies: mask: <address> max_cycles: <address>, max_idle_ns: 1911260446275000 ns
+[time] kfence: initialized - using 2097152 bytes for 255 objects at 0x(____ptrval____)-0x(____ptrval____)
+[time] Console: colour VGA+ 8<address>
+[time] printk: legacy console [tty0] enabled
+[time] printk: legacy console [ttyS0] enabled
+[time] ACPI: Core revision 20250807
+[time] clocksource: hpet: mask: <address> max_cycles: <address>, max_idle_ns: 19112604467 ns
+[time] APIC: Switch to symmetric I/O mode setup
+[time] x2apic: IRQ remapping doesn't support X2APIC mode
+[time] ..TIMER: vector=<address> apic1=0 pin1=2 apic2=-1 pin2=-1
+[time] clocksource: tsc-early: <calibration>
+[time] Calibrating delay loop <calibration>
+[time] x86/cpu: User Mode Instruction Prevention (UMIP) activated
+[time] Last level iTLB entries: 4KB 0, 2MB 0, 4MB 0
+[time] Last level dTLB entries: 4KB 0, 2MB 0, 4MB 0, 1GB 0
+[time] mitigations: Enabled attack vectors: user_kernel, user_user, guest_host, guest_guest, SMT mitigations: auto
+[time] Speculative Store Bypass: Vulnerable
+[time] Spectre V2 : Mitigation: Retpolines
+[time] Spectre V1 : Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+[time] Spectre V2 : Spectre v2 / SpectreRSB: Filling RSB on context switch and VMEXIT
+[time] x86/fpu: Supporting XSAVE feature <address>: 'x87 floating point registers'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'SSE registers'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'AVX registers'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'MPX bounds registers'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'MPX CSR'
+[time] x86/fpu: Supporting XSAVE feature <address>: 'Protection Keys User registers'
+[time] x86/fpu: xstate_offset[2]:  576, xstate_sizes[2]:  256
+[time] x86/fpu: xstate_offset[3]:  960, xstate_sizes[3]:   64
+[time] x86/fpu: xstate_offset[4]: 1024, xstate_sizes[4]:   64
+[time] x86/fpu: xstate_offset[9]: 2688, xstate_sizes[9]:    8
+[time] x86/fpu: Enabled xstate features <address>, context size is 2696 bytes, using 'standard' format.
+[time] Freeing SMP alternatives memory: 44K
+[time] pid_max: default: 32768 minimum: 301
+[time] LSM: initializing lsm=lockdown,capability,landlock,yama
+[time] landlock: Up and running.
+[time] Yama: becoming mindful.
+[time] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[time] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[time] smpboot: CPU0: AMD QEMU TCG CPU version 2.5+ (family: <address>, model: <address>, stepping: <address>)
+[time] Performance Events: PMU not available due to virtualization, using software events only.
+[time] signal: max sigframe size: 3632
+[time] rcu: Hierarchical SRCU implementation.
+[time] rcu: 	Max phase no-delay instances is 400.
+[time] Timer migration: 1 hierarchy levels; 8 children per group; 1 crossnode level
+[time] NMI watchdog: Perf NMI watchdog permanently disabled
+[time] smp: Bringing up secondary CPUs ...
+[time] smpboot: x86: Booting SMP configuration:
+[time] .... node  #0, CPUs:      #1 #2 #3
+[time] smp: Brought up 1 node, 4 CPUs
+[time] smpboot: Total of 4 processors activated (<bogomips> BogoMIPS)
+[time] Memory: <memory>
+[time] devtmpfs: initialized
+[time] x86/mm: Memory block size: 128MB
+[time] posixtimers hash table entries: 2048 (order: 3, 32768 bytes, linear)
+[time] futex hash table entries: 1024 (65536 bytes on 1 NUMA nodes, total 64 KiB, linear).
+[time] pinctrl core: initialized pinctrl subsystem
+[time] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[time] audit: initializing netlink subsys (disabled)
+[time] audit: type=2000 audit(<event>:1): state=initialized audit_enabled=0 res=1
+[time] thermal_sys: Registered thermal governor 'fair_share'
+[time] thermal_sys: Registered thermal governor 'bang_bang'
+[time] thermal_sys: Registered thermal governor 'step_wise'
+[time] thermal_sys: Registered thermal governor 'user_space'
+[time] cpuidle: using governor ladder
+[time] cpuidle: using governor menu
+[time] acpiphp: ACPI Hot Plug PCI Controller Driver version: 0.5
+[time] PCI: Using configuration type 1 for base access
+[time] mtrr: your CPUs had inconsistent fixed MTRR settings
+[time] mtrr: your CPUs had inconsistent variable MTRR settings
+[time] mtrr: your CPUs had inconsistent MTRRdefType settings
+[time] mtrr: probably your BIOS does not setup all CPUs.
+[time] mtrr: corrected configuration.
+[time] kprobes: kprobe jump-optimization is enabled. All kprobes are optimized if possible.
+[time] HugeTLB: registered 1.00 GiB page size, pre-allocated 0 pages
+[time] HugeTLB: 16380 KiB vmemmap can be freed for a 1.00 GiB page
+[time] HugeTLB: registered 2.00 MiB page size, pre-allocated 0 pages
+[time] HugeTLB: 28 KiB vmemmap can be freed for a 2.00 MiB page
+[time] ACPI: Added _OSI(Module Device)
+[time] ACPI: Added _OSI(Processor Device)
+[time] ACPI: Added _OSI(Processor Aggregator Device)
+[time] ACPI: 1 ACPI AML tables successfully acquired and loaded
+[time] ACPI: Interpreter enabled
+[time] ACPI: PM: (supports S0 S3 S4 S5)
+[time] ACPI: Using IOAPIC for interrupt routing
+[time] PCI: Using host bridge windows from ACPI; if necessary, use "pci=nocrs" and report a bug
+[time] PCI: Using E820 reservations for host bridge windows
+[time] ACPI: Enabled 2 GPEs in block 00 to 0F
+[time] ACPI: PCI Root Bridge [PCI0] (domain 0000 [bus 00-ff])
+[time] acpi PNP0A03:00: _OSC: OS supports [ASPM ClockPM Segments MSI HPX-Type3]
+[time] acpi PNP0A03:00: _OSC: not requesting OS control; OS requires [ExtendedConfig ASPM ClockPM MSI]
+[time] acpi PNP0A03:00: fail to add MMCONFIG information, can't access extended configuration space under this bridge
+[time] acpiphp: Slot [3] registered
+[time] acpiphp: Slot [4] registered
+[time] acpiphp: Slot [5] registered
+[time] acpiphp: Slot [6] registered
+[time] acpiphp: Slot [7] registered
+[time] acpiphp: Slot [8] registered
+[time] acpiphp: Slot [9] registered
+[time] acpiphp: Slot [10] registered
+[time] acpiphp: Slot [11] registered
+[time] acpiphp: Slot [12] registered
+[time] acpiphp: Slot [13] registered
+[time] acpiphp: Slot [14] registered
+[time] acpiphp: Slot [15] registered
+[time] acpiphp: Slot [16] registered
+[time] acpiphp: Slot [17] registered
+[time] acpiphp: Slot [18] registered
+[time] acpiphp: Slot [19] registered
+[time] acpiphp: Slot [20] registered
+[time] acpiphp: Slot [21] registered
+[time] acpiphp: Slot [22] registered
+[time] acpiphp: Slot [23] registered
+[time] acpiphp: Slot [24] registered
+[time] acpiphp: Slot [25] registered
+[time] acpiphp: Slot [26] registered
+[time] acpiphp: Slot [27] registered
+[time] acpiphp: Slot [28] registered
+[time] acpiphp: Slot [29] registered
+[time] acpiphp: Slot [30] registered
+[time] acpiphp: Slot [31] registered
+[time] PCI host bridge to bus 0000:00
+[time] pci_bus 0000:00: root bus resource [io  <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [io  <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [mem <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [mem <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [mem <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [bus 00-ff]
+[time] pci 0000:00:00.0: [8086:1237] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.0: [8086:7000] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.1: [8086:7010] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.1: BAR 4 [io  <address>-<address>]
+[time] pci 0000:00:01.1: BAR 0 [io  <address>-<address>]: legacy IDE quirk
+[time] pci 0000:00:01.1: BAR 1 [io  <address>]: legacy IDE quirk
+[time] pci 0000:00:01.1: BAR 2 [io  <address>-<address>]: legacy IDE quirk
+[time] pci 0000:00:01.1: BAR 3 [io  <address>]: legacy IDE quirk
+[time] pci 0000:00:01.3: [8086:7113] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.3: quirk: [io  <address>-<address>] claimed by PIIX4 ACPI
+[time] pci 0000:00:01.3: quirk: [io  <address>-<address>] claimed by PIIX4 SMB
+[time] pci 0000:00:02.0: [1234:1111] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:02.0: BAR 0 [mem <address>-<address> pref]
+[time] pci 0000:00:02.0: BAR 2 [mem <address>-<address>]
+[time] pci 0000:00:02.0: ROM [mem <address>-<address> pref]
+[time] pci 0000:00:02.0: Video device with shadowed ROM at [mem <address>-<address>]
+[time] pci 0000:00:03.0: [1af4:1001] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:03.0: BAR 0 [io  <address>-<address>]
+[time] pci 0000:00:03.0: BAR 1 [mem <address>-<address>]
+[time] pci 0000:00:03.0: BAR 4 [mem <address>-<address> 64bit pref]
+[time] pci 0000:00:04.0: [1af4:1001] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:04.0: BAR 0 [io  <address>-<address>]
+[time] pci 0000:00:04.0: BAR 1 [mem <address>-<address>]
+[time] pci 0000:00:04.0: BAR 4 [mem <address>-<address> 64bit pref]
+[time] pci 0000:00:05.0: [1af4:1000] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:05.0: BAR 0 [io  <address>-<address>]
+[time] pci 0000:00:05.0: BAR 1 [mem <address>-<address>]
+[time] pci 0000:00:05.0: BAR 4 [mem <address>-<address> 64bit pref]
+[time] pci 0000:00:05.0: ROM [mem <address>-<address> pref]
+[time] ACPI: PCI: Interrupt link LNKA configured for IRQ 10
+[time] ACPI: PCI: Interrupt link LNKB configured for IRQ 10
+[time] ACPI: PCI: Interrupt link LNKC configured for IRQ 11
+[time] ACPI: PCI: Interrupt link LNKD configured for IRQ 11
+[time] ACPI: PCI: Interrupt link LNKS configured for IRQ 9
+[time] iommu: Default domain type: Translated
+[time] iommu: DMA domain TLB invalidation policy: lazy mode
+[time] pps_core: LinuxPPS API ver. 1 registered
+[time] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[time] PTP clock support registered
+[time] EDAC MC: Ver: 3.0.0
+[time] PCI: Using ACPI for IRQ routing
+[time] PCI: pci_cache_line_size set to 64 bytes
+[time] e820: reserve RAM buffer [mem <address>-<address>]
+[time] e820: reserve RAM buffer [mem <address>-<address>]
+[time] pci 0000:00:02.0: vgaarb: setting as boot VGA device
+[time] pci 0000:00:02.0: vgaarb: bridge control possible
+[time] pci 0000:00:02.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
+[time] vgaarb: loaded
+[time] hpet0: at MMIO <address>, IRQs 2, 8, 0
+[time] hpet0: 3 comparators, 64-bit 100.000000 MHz counter
+[time] clocksource: Switched to clocksource tsc-early
+[time] VFS: Disk quotas dquot_6.6.0
+[time] VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
+[time] pnp: PnP ACPI init
+[time] pnp 00:02: [dma 2]
+[time] pnp: PnP ACPI: found 6 devices
+[time] clocksource: acpi_pm: mask: <address> max_cycles: <address>, max_idle_ns: 2085701024 ns
+[time] NET: Registered PF_INET protocol family
+[time] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[time] tcp_listen_portaddr_hash hash table entries: 512 (order: 1, 8192 bytes, linear)
+[time] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[time] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[time] TCP bind hash table entries: 8192 (order: 6, 262144 bytes, linear)
+[time] TCP: Hash tables configured (established 8192 bind 8192)
+[time] MPTCP token hash table entries: 1024 (order: 3, 24576 bytes, linear)
+[time] UDP hash table entries: 512 (order: 3, 32768 bytes, linear)
+[time] UDP-Lite hash table entries: 512 (order: 3, 32768 bytes, linear)
+[time] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[time] NET: Registered PF_XDP protocol family
+[time] pci_bus 0000:00: resource 4 [io  <address>-<address> window]
+[time] pci_bus 0000:00: resource 5 [io  <address>-<address> window]
+[time] pci_bus 0000:00: resource 6 [mem <address>-<address> window]
+[time] pci_bus 0000:00: resource 7 [mem <address>-<address> window]
+[time] pci_bus 0000:00: resource 8 [mem <address>-<address> window]
+[time] pci 0000:00:01.0: PIIX3: Enabling Passive Release
+[time] pci 0000:00:00.0: Limiting direct PCI/PCI transfers
+[time] PCI: CLS 0 bytes, default 64
+[time] Trying to unpack rootfs image as initramfs...
+[time] Initialise system trusted keyrings
+[time] workingset: timestamp_bits=40 max_order=18 bucket_order=0
+[time] Key type asymmetric registered
+[time] Asymmetric key parser 'x509' registered
+[time] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 245)
+[time] io scheduler mq-deadline registered
+[time] io scheduler kyber registered
+[time] io scheduler bfq registered
+[time] ERST DBG: ERST support is disabled.
+[time] Serial: 8250/16550 driver, 4 ports, IRQ sharing enabled
+[time] 00:04: ttyS0 at I/O <address> (irq = 4, base_baud = 115200) is a 16550A
+[time] Linux agpgart interface v0.103
+[time] ACPI: bus type drm_connector registered
+[time] brd: module loaded
+[time] i8042: PNP: PS/2 Controller [PNP0303:KBD,PNP0f13:MOU] at <address>,<address> irq 1,12
+[time] serio: i8042 KBD port at <address>,<address> irq 1
+[time] serio: i8042 AUX port at <address>,<address> irq 12
+[time] rtc_cmos 00:05: RTC can wake from S4
+[time] rtc_cmos 00:05: registered as rtc0
+[time] rtc_cmos <system clock>
+[time] rtc_cmos 00:05: alarms up to one day, y3k, 242 bytes nvram, hpet irqs
+[time] amd_pstate: the _CPC object is not present in SBIOS or ACPI disabled
+[time] gre: GRE over IPv4 demultiplexer driver
+[time] NET: Registered PF_INET6 protocol family
+[time] Segment Routing with IPv6
+[time] In-situ OAM (IOAM) with IPv6
+[time] can: controller area network core
+[time] NET: Registered PF_CAN protocol family
+[time] Key type dns_resolver registered
+[time] IPI shorthand broadcast: enabled
+[time] sched_clock: <calibration>
+[time] registered taskstats version 1
+[time] Loading compiled-in X.509 certificates
+[time] tsc: Refined TSC clocksource calibration: 1000.000 MHz
+[time] clocksource: tsc: mask: <address> max_cycles: <address>, max_idle_ns: 881590591483 ns
+[time] clocksource: Switched to clocksource tsc
+[time] Freeing initrd memory: 21960K
+[time] Loaded X.509 cert 'alpinelinux.org: Alpine Linux kernel key: d76a695f66ad9cd28f5c22a8508f36e91f521f7a'
+[time] Demotion targets for Node 0: null
+[time] Key type .fscrypt registered
+[time] Key type fscrypt-provisioning registered
+[time] clk: Disabling unused clocks
+[time] PM: genpd: Disabling unused power domains
+[time] Freeing unused kernel image (initmem) memory: 3832K
+[time] Write protecting the kernel read-only data: 28672k
+[time] Freeing unused kernel image (text/rodata gap) memory: 68K
+[time] Freeing unused kernel image (rodata/data gap) memory: 1016K
+[time] Run /init as init process
+[time]   with arguments:
+[time]     /init
+[time]   with environment:
+[time]     HOME=/
+[time]     TERM=linux
+[time]     home_installer_qemu=1
+[time] Alpine Init 3.14.0-r0
+[time] Loading boot drivers...
+[time] loop: module loaded
+[time] squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[time] Loading boot drivers: ok.
+[time] Mounting boot media...
+[time] ACPI: \_SB_.LNKC: Enabled at IRQ 11
+[time] ACPI: \_SB_.LNKD: Enabled at IRQ 10
+[time] ACPI: \_SB_.LNKA: Enabled at IRQ 10
+[time] SCSI subsystem initialized
+[time] libata version 3.00 loaded.
+[time] scsi host0: ata_piix
+[time] scsi host1: ata_piix
+[time] ata1: PATA max MWDMA2 cmd <address> ctl <address> bmdma <address> irq 14 lpm-pol 0
+[time] ata2: PATA max MWDMA2 cmd <address> ctl <address> bmdma <address> irq 15 lpm-pol 0
+[time] ata2: found unknown device (class 0)
+[time] ata2.00: ATAPI: QEMU DVD-ROM, 2.5+, max UDMA/100
+[time] scsi 1:0:0:0: CD-ROM            QEMU     QEMU DVD-ROM     2.5+ PQ: 0 ANSI: 5
+[time] virtio_blk virtio0: 4/0/0 default/read/poll queues
+[time] virtio_blk virtio0: [vda] 2232960 512-byte logical blocks (1.14 GB/1.06 GiB)
+[time]  vda: vda1 vda2
+[time] virtio_blk virtio1: 4/0/0 default/read/poll queues
+[time] virtio_blk virtio1: [vdb] 16777216 512-byte logical blocks (8.59 GB/8.00 GiB)
+[time] sr 1:0:0:0: [sr0] scsi3-mmc drive: 4x/4x cd/rw xa/form2 tray
+[time] cdrom: Uniform CD-ROM driver Revision: 3.20
+[time] sr 1:0:0:0: Attached scsi CD-ROM sr0
+[time] block sr0: the capability attribute has been deprecated.
+[time] ISO 9660 Extensions: RRIP_1991A
+[time] Mounting boot media: ok.
+[time] Loading user settings from /media/vda/home-installer.apkovl.tar.gz...
+[time] Loading user settings from /media/vda/home-installer.apkovl.tar.gz: ok.
+[time] Installing packages to root filesystem...
+[time] Installing packages to root filesystem: ok.
+[time] loop0: detected capacity change from 0 to 655152
+[time] ACPI: button: Power Button [PWRF]
+[time] parport_pc 00:03: reported by Plug and Play ACPI
+[time] parport0: PC-style at <address>, irq 7 [PCSPP(,...)]
+[time] Floppy drive(s): fd0 is 2.88M AMI BIOS
+[time] FDC 0 is a S82078B
+[time] bochs-drm 0000:00:02.0: vgaarb: deactivate vga console
+[time] Console: switching to colour dummy device 8<address>
+[time] [drm] Found bochs VGA, ID <address>.
+[time] [drm] Framebuffer size 16384 kB @ <address>, mmio @ <address>.
+[time] [drm] Initialized bochs-drm 1.0.0 for 0000:00:02.0 on minor 0
+[time] fbcon: bochs-drmdrmfb (fb0) is primary device
+[time] Console: switching to colour frame buffer device 16<address>
+[time] bochs-drm 0000:00:02.0: [drm] fb0: bochs-drmdrmfb frame buffer device
+[time] piix4_smbus 0000:00:01.3: SMBus Host Controller at <address>, revision 0
+[time] i2c i2c-0: Memory type <address> not supported yet, not instantiating SPD
+[time] mousedev: PS/2 mouse device common for all mice
+[time] NET: Registered PF_PACKET protocol family
+
+$ lsmod
+Module                  Size  Used by    Not tainted
+af_packet              69632  0
+mousedev               28672  0
+serio_raw              16384  0
+psmouse               196608  0
+pcspkr                 12288  0
+i2c_piix4              32768  0
+i2c_smbus              20480  1 i2c_piix4
+intel_agp              24576  0
+intel_gtt              28672  1 intel_agp
+bochs                  24576  0
+input_leds             12288  0
+evdev                  32768  0
+qemu_fw_cfg            20480  0
+floppy                 98304  0
+parport_pc             40960  0
+parport                49152  1 parport_pc
+button                 28672  0
+vfat                   24576  0
+fat                   110592  1 vfat
+isofs                  57344  1
+sr_mod                 28672  0
+cdrom                  81920  2 isofs,sr_mod
+virtio_net            122880  0
+net_failover           24576  1 virtio_net
+failover               12288  1 net_failover
+virtio_blk             32768  1
+ata_generic            12288  0
+pata_acpi              12288  0
+ata_piix               45056  0
+libata                466944  3 ata_generic,pata_acpi,ata_piix
+scsi_mod              278528  2 sr_mod,libata
+scsi_common            16384  3 sr_mod,libata,scsi_mod
+virtio_pci             53248  0
+virtio_pci_legacy_dev    16384  1 virtio_pci
+virtio_pci_modern_dev    20480  1 virtio_pci
+virtio                 28672  3 virtio_net,virtio_blk,virtio_pci
+virtio_ring            65536  4 virtio_net,virtio_blk,virtio_pci,virtio
+squashfs               86016  1
+loop                   45056  2
+
+$ modinfo i915
+filename:       /lib/modules/6.18.39-0-lts/kernel/drivers/gpu/drm/i915/i915.ko
+author:         Intel Corporation
+author:         Tungsten Graphics, Inc.
+description:    Intel Graphics
+license:        GPL and additional rights
+parm:           mitigations:Selectively enable security mitigations for all Intel® GPUs in the system.
+
+  auto -- enables all mitigations required for the platform [default]
+  off  -- disables all mitigations
+
+Individual mitigations can be enabled by passing a comma-separated string,
+e.g. mitigations=residuals to enable only clearing residuals or
+mitigations=auto,noresiduals to disable only the clear residual mitigation.
+Either '!' or 'no' may be used to switch from enabling the mitigation to
+disabling it.
+
+Active mitigations for Ivybridge, Baytrail, Haswell:
+  residuals -- clear all thread-local registers between contexts
+parm:           lmem_bar_size:Set the lmem bar size(in MiB).
+parm:           lmem_size:Set the lmem size(in MiB) for each region. (default: 0, all memory)
+parm:           request_timeout_ms:Default request/fence/batch buffer expiration timeout.
+parm:           enable_gvt:Enable support for Intel GVT-g graphics virtualization host support(default:false)
+parm:           gsc_firmware_path:GSC firmware path to use instead of the default one
+parm:           huc_firmware_path:HuC firmware path to use instead of the default one
+parm:           guc_firmware_path:GuC firmware path to use instead of the default one
+parm:           guc_log_level:GuC firmware logging level. Requires GuC to be loaded. (-1=auto [default], 0=disable, 1..4=enable with verbosity min..max)
+parm:           enable_guc:Enable GuC load for GuC submission and/or HuC load. Required functionality can be selected using bitmask values. (-1=auto [default], 0=disable, 1=GuC submission, 2=HuC load)
+parm:           mmio_debug:Enable the MMIO debug code for the first N failures (default: off). This may negatively affect performance.
+parm:           memtest:Perform a read/write test of all device memory on module load (default: off)
+parm:           force_probe:Force probe options for specified supported devices. See CONFIG_DRM_I915_FORCE_PROBE for details.
+parm:           enable_hangcheck:Periodically check GPU activity for detecting hangs. WARNING: Disabling this can cause system wide hangs. (default: true)
+parm:           error_capture:Record the GPU state following a hang. This information in /sys/class/drm/card<N>/error is vital for triaging and debugging hangs.
+parm:           reset:Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])
+parm:           modeset:Deprecated. Use the 'nomodeset' kernel parameter instead.
+parm:           enable_dmc_wl:Enable DMC wakelock (-1=use per-chip default, 0=disabled, 1=enabled, 2=match any register, 3=always locked) Default: -1
+parm:           enable_psr2_sel_fetch:Enable PSR2 and Panel Replay selective fetch (0=disabled, 1=enabled) Default: 1
+parm:           psr_safest_params:Replace PSR VBT parameters by the safest and not optimal ones. This is helpful to detect if PSR issues are related to bad values set in  VBT. (0=use VBT parameters, 1=use safest parameters)Default: 0
+parm:           enable_panel_replay:Enable Panel Replay (0=disabled, 1=enabled). Default: -1 (use per-chip default)
+parm:           enable_psr:Enable PSR (0=disabled, 1=enable up to PSR1, 2=enable up to PSR2) Default: -1 (use per-chip default)
+parm:           enable_fbc:Enable frame buffer compression for power savings (default: -1 (use per-chip default))
+parm:           enable_dp_mst:Enable multi-stream transport (MST) for new DisplayPort sinks. (default: true)
+parm:           nuclear_pageflip:Force enable atomic functionality on platforms that don't have full support yet.
+parm:           verbose_state_checks:Enable verbose logs (ie. WARN_ON()) in case of unexpected hw state conditions.
+parm:           disable_display:Disable display (default: false)
+parm:           force_reset_modeset_test:Force a modeset during gpu reset for testing (default:false). For developers only.
+parm:           load_detect_test:Force-enable the VGA load detect code for testing (default:false). For developers only.
+parm:           enable_dpcd_backlight:Enable support for DPCD backlight control(-1=use per-VBT LFP backlight type setting [default], 0=disabled, 1=enable, 2=force VESA interface, 3=force Intel interface)
+parm:           edp_vswing:Ignore/Override vswing pre-emph table selection from VBT (0=use value from vbt [default], 1=low power swing(200mV),2=default swing(400mV))
+parm:           invert_brightness:Invert backlight brightness (-1 force normal, 0 machine defaults, 1 force inversion), please report PCI device ID, subsystem vendor and subsystem device ID to dri-devel@lists.freedesktop.org, if your machine needs it. It will then be included in an upcoming module version.
+parm:           enable_ips:Enable IPS (default: true)
+parm:           disable_power_well:Disable display power wells when possible (-1=auto [default], 0=power wells always on, 1=power wells disabled when possible)
+parm:           enable_sagv:Enable system agent voltage/frequency scaling (SAGV) (default: true)
+parm:           enable_flipq:Enable DMC flip queue (default: false)
+parm:           enable_dsb:Enable display state buffer (DSB) (default: true)
+parm:           enable_dpt:Enable display page table (DPT) (default: true)
+parm:           enable_dc:Enable power-saving display C-states. (-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6; 3=up to DC5 with DC3CO; 4=up to DC6 with DC3CO)
+parm:           vbt_sdvo_panel_type:Override/Ignore selection of SDVO panel mode in the VBT (-2=ignore, -1=auto [default], index in VBT BIOS table)
+parm:           panel_use_ssc:Use Spread Spectrum Clock with panels [LVDS/eDP] (default: auto from VBT)
+parm:           lvds_channel_mode:Specify LVDS channel mode (0=probe BIOS [default], 1=single-channel, 2=dual-channel)
+parm:           vbt_firmware:Load VBT from specified file under /lib/firmware
+parm:           dmc_firmware_path:DMC firmware path to use instead of the default one. Use /dev/null to disable DMC and runtime PM.
+alias:          pci:v00008086d00007DD5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D60sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D55sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D45sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D40sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000B640sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D67sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D41sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007DD1sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D51sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056C1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056C2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056C0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005697sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005696sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056B3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056B2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A4sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A3sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005695sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005694sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005693sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BDsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BCsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BBsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BAsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056B1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056B0sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A6sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005692sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005691sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005690sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BFsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BEsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A0sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7ABsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7AAsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7A8sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7A0sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A720sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7ADsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7ACsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7A9sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7A1sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A721sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A78Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A78Asv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A789sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A788sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A783sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A782sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A781sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A780sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004909sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004908sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004907sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004906sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004905sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D4sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D0sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046C3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046C2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046C1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046C0sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046B3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046B2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046B1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046B0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004628sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004626sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000462Asv*sd*bc03sc*i*
+alias:          pci:v00008086d000046AAsv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A8sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A6sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004693sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004692sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004690sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000468Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000468Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00004688sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004682sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004680sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C9Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C90sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C8Csv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C8Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C8Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C80sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009AF8sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009AD9sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009AC9sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009AC0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A78sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A59sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A49sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A40sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A70sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A68sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A60sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E71sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E61sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E57sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E55sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E51sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004571sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004570sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004557sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004555sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004551sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004541sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A5Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A51sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A71sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A70sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A5Csv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A5Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A5Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A59sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A58sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A57sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A56sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A54sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A53sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A52sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A50sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BCCsv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BCAsv*sd*bc03sc*i*
+alias:          pci:v00008086d00009B41sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BACsv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BAAsv*sd*bc03sc*i*
+alias:          pci:v00008086d00009B21sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BF6sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BE6sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC8sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC6sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC4sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC2sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BA8sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BA5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BA4sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BA2sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000087CAsv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA3sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA4sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA1sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA8sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA7sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA6sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA9sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E9Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E94sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E9Csv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E9Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E98sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E96sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E92sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E91sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E99sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E93sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E90sv*sd*bc03sc*i*
+alias:          pci:v00008086d000087C0sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Csv*sd*bc03sc*i*
+alias:          pci:v00008086d0000593Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00005927sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005923sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005926sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00005917sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005912sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00005921sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005916sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000590Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000590Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00005908sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005902sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005915sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000590Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00005913sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005906sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003185sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003184sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005A85sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005A84sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001A85sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001A84sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A84sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000193Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000193Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000193Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001932sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000192Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000192Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000192Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001927sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001926sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001923sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000191Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000191Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000191Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001912sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000191Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00001921sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001916sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001917sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000190Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000190Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001902sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001915sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000190Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00001913sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001906sv*sd*bc03sc*i*
+alias:          pci:v00008086d000022B3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000022B2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000022B1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000022B0sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000163Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000163Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001632sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000163Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000163Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00001636sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000162Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000162Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001622sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000162Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000162Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00001626sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000161Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000161Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001612sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000161Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000161Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00001616sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000160Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000160Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001602sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000160Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000160Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00001606sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000F33sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000F32sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000F31sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000F30sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D2Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D2Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D2Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D26sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D22sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C2Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C2Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C2Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C26sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C22sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000042Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000042Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000042Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000426sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000422sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A2Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A2Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A2Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A26sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A22sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D1Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D1Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D1Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D16sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D12sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C1Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C1Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C1Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C16sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C12sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000041Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000041Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000041Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000416sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000412sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A1Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A1Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A1Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A16sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A12sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D0Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D0Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D0Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D06sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D02sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C0Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C0Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C0Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C06sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C02sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000040Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000040Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000040Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000406sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000402sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A0Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A0Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A0Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A06sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A02sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000016Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000162sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000015Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000152sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000166sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000156sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000016Asv0000152Dsd00008990bc03sc*i*
+alias:          pci:v00008086d00000126sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000116sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000106sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000122sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000112sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000010Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000102sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000046sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000042sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A011sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A001sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E92sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E42sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E32sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E22sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E12sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E02sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002A42sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002A12sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002A02sv*sd*bc03sc*i*
+alias:          pci:v00008086d000029D2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000029C2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000029B2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000029A2sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002992sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002982sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002972sv*sd*bc03sc*i*
+alias:          pci:v00008086d000027AEsv*sd*bc03sc*i*
+alias:          pci:v00008086d000027A2sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002772sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002592sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000258Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00002582sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002572sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000358Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00003582sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002562sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003577sv*sd*bc03sc*i*
+depends:        drm_display_helper,video,ttm,cec,intel-gtt,drm_buddy,hwmon,i2c-algo-bit
+intree:         Y
+vermagic:       6.18.39-0-lts SMP preempt mod_unload modversions
+firmware:       i915/mtl_gsc_1.bin
+firmware:       i915/skl_huc_2.0.0.bin
+firmware:       i915/bxt_huc_2.0.0.bin
+firmware:       i915/kbl_huc_4.0.0.bin
+firmware:       i915/glk_huc_4.0.0.bin
+firmware:       i915/kbl_huc_4.0.0.bin
+firmware:       i915/kbl_huc_4.0.0.bin
+firmware:       i915/cml_huc_4.0.0.bin
+firmware:       i915/icl_huc_9.0.0.bin
+firmware:       i915/ehl_huc_9.0.0.bin
+firmware:       i915/ehl_huc_9.0.0.bin
+firmware:       i915/tgl_huc_7.9.3.bin
+firmware:       i915/tgl_huc_7.9.3.bin
+firmware:       i915/dg1_huc.bin
+firmware:       i915/tgl_huc_7.9.3.bin
+firmware:       i915/tgl_huc.bin
+firmware:       i915/tgl_huc_7.9.3.bin
+firmware:       i915/tgl_huc.bin
+firmware:       i915/dg2_huc_gsc.bin
+firmware:       i915/mtl_huc_gsc.bin
+firmware:       i915/skl_guc_70.1.1.bin
+firmware:       i915/bxt_guc_70.1.1.bin
+firmware:       i915/kbl_guc_70.1.1.bin
+firmware:       i915/glk_guc_70.1.1.bin
+firmware:       i915/kbl_guc_70.1.1.bin
+firmware:       i915/kbl_guc_70.1.1.bin
+firmware:       i915/cml_guc_70.1.1.bin
+firmware:       i915/icl_guc_70.1.1.bin
+firmware:       i915/ehl_guc_70.1.1.bin
+firmware:       i915/ehl_guc_70.1.1.bin
+firmware:       i915/tgl_guc_70.1.1.bin
+firmware:       i915/tgl_guc_70.1.1.bin
+firmware:       i915/dg1_guc_70.bin
+firmware:       i915/tgl_guc_69.0.3.bin
+firmware:       i915/tgl_guc_70.1.1.bin
+firmware:       i915/tgl_guc_70.bin
+firmware:       i915/adlp_guc_69.0.3.bin
+firmware:       i915/adlp_guc_70.1.1.bin
+firmware:       i915/adlp_guc_70.bin
+firmware:       i915/dg2_guc_70.bin
+firmware:       i915/mtl_guc_70.bin
+firmware:       i915/bxt_dmc_ver1_07.bin
+firmware:       i915/skl_dmc_ver1_27.bin
+firmware:       i915/kbl_dmc_ver1_04.bin
+firmware:       i915/glk_dmc_ver1_04.bin
+firmware:       i915/icl_dmc_ver1_09.bin
+firmware:       i915/tgl_dmc_ver2_12.bin
+firmware:       i915/rkl_dmc_ver2_03.bin
+firmware:       i915/dg1_dmc_ver2_02.bin
+firmware:       i915/adls_dmc_ver2_01.bin
+firmware:       i915/adlp_dmc_ver2_16.bin
+firmware:       i915/adlp_dmc.bin
+firmware:       i915/dg2_dmc_ver2_08.bin
+firmware:       i915/mtl_dmc.bin
+firmware:       i915/bmg_dmc.bin
+firmware:       i915/xe2lpd_dmc.bin
+firmware:       i915/xe3lpd_dmc.bin
+firmware:       i915/xe3lpd_3002_dmc.bin
+
+$ modinfo snd_hda_intel
+filename:       /lib/modules/6.18.39-0-lts/kernel/sound/hda/controllers/snd-hda-intel.ko
+description:    Intel HDA driver
+license:        GPL
+parm:           snoop:Enable/disable snooping
+parm:           align_buffer_size:Force buffer and period sizes to be multiple of 128 bytes.
+parm:           power_save_controller:Reset controller in power save mode.
+parm:           pm_blacklist:Enable power-management denylist
+parm:           power_save:Automatic power-saving timeout (in second, 0 = disable).
+parm:           ctl_dev_id:Use control device identifier (based on codec address).
+parm:           dmic_detect:Allow DSP driver selection (bypass this driver) (0=off, 1=on) (default=1); deprecated, use snd-intel-dspcfg.dsp_driver option instead
+parm:           beep_mode:Select HDA Beep registration mode (0=off, 1=on) (default=1).
+parm:           enable_msi:Enable Message Signaled Interrupt (MSI)
+parm:           single_cmd:Use single command to communicate with codecs (for debugging only).
+parm:           jackpoll_ms:Ms between polling for jack events (default = 0, using unsol events only)
+parm:           probe_only:Only probing and no codec initialization.
+parm:           probe_mask:Bitmask to probe codecs (default = -1).
+parm:           bdl_pos_adj:BDL position adjustment offset.
+parm:           position_fix:DMA pointer read method.(-1 = system default, 0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO, 4 = COMBO, 5 = SKL+, 6 = FIFO).
+parm:           model:Use the given board model.
+parm:           enable:Enable Intel HD audio interface.
+parm:           id:ID string for Intel HD audio interface.
+parm:           index:Index value for Intel HD audio interface.
+alias:          pci:v00000014d00007A37sv*sd*bc*sc*i*
+alias:          pci:v00000014d00007A07sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009146sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009145sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009144sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009142sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009141sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00003288sv*sd*bc*sc*i*
+alias:          pci:v00001022d*sv*sd*bc04sc03i00*
+alias:          pci:v00001002d*sv*sd*bc04sc03i00*
+alias:          pci:v000015ADd00001977sv*sd*bc*sc*i*
+alias:          pci:v000017F3d00003010sv*sd*bc*sc*i*
+alias:          pci:v000013F6d00005011sv*sd*bc*sc*i*
+alias:          pci:v00001102d00000009sv*sd*bc*sc*i*
+alias:          pci:v00001102d00000012sv*sd*bc*sc*i*
+alias:          pci:v00001102d00000010sv*sd*bc*sc*i*
+alias:          pci:v00006549d00002200sv*sd*bc*sc*i*
+alias:          pci:v00006549d00001200sv*sd*bc*sc*i*
+alias:          pci:v000010DEd*sv*sd*bc04sc03i00*
+alias:          pci:v000010B9d00005461sv*sd*bc*sc*i*
+alias:          pci:v00001039d00007502sv*sd*bc*sc*i*
+alias:          pci:v00001106d00009140sv*sd*bc*sc*i*
+alias:          pci:v00001106d00009170sv*sd*bc*sc*i*
+alias:          pci:v00001106d00003288sv*sd*bc*sc*i*
+alias:          pci:v00006766d*sv*sd*bc04sc03i00*
+alias:          pci:v00001002d0000AB40sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB38sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB30sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB28sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB20sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB18sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB10sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB08sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB00sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAF8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAF0sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAE8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAE0sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAD8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAC8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAC0sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAB0sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAA8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAA0sv*sd*bc*sc*i*
+alias:          pci:v00001002d00009902sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA98sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA90sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA88sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA80sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA68sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA60sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA58sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA50sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA48sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA40sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA38sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA30sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA28sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA20sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA18sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA10sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA08sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA00sv*sd*bc*sc*i*
+alias:          pci:v00001002d00009840sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000970Fsv*sd*bc*sc*i*
+alias:          pci:v00001002d0000960Fsv*sd*bc*sc*i*
+alias:          pci:v00001002d00007919sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000793Bsv*sd*bc*sc*i*
+alias:          pci:v00001002d000015B3sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000157Asv*sd*bc*sc*i*
+alias:          pci:v00001002d00001308sv*sd*bc*sc*i*
+alias:          pci:v00001002d00000002sv*sd*bc*sc*i*
+alias:          pci:v00001022d000015E3sv*sd*bc*sc*i*
+alias:          pci:v00001022d0000157Asv*sd*bc*sc*i*
+alias:          pci:v00001022d00001487sv*sd*bc*sc*i*
+alias:          pci:v00001022d00001457sv*sd*bc*sc*i*
+alias:          pci:v00001022d0000780Dsv*sd*bc*sc*i*
+alias:          pci:v00001002d00004383sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000437Bsv*sd*bc*sc*i*
+alias:          pci:v00008086d*sv*sd*bc04sc03i00*
+alias:          pci:v00008086d00003A6Esv*sd*bc*sc*i*
+alias:          pci:v00008086d00003A3Esv*sd*bc*sc*i*
+alias:          pci:v00008086d0000293Fsv*sd*bc*sc*i*
+alias:          pci:v00008086d0000293Esv*sd*bc*sc*i*
+alias:          pci:v00008086d0000284Bsv*sd*bc*sc*i*
+alias:          pci:v00008086d0000269Asv*sd*bc*sc*i*
+alias:          pci:v00008086d000027D8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00002668sv*sd*bc*sc*i*
+alias:          pci:v00008086d00002284sv*sd*bc*sc*i*
+alias:          pci:v00008086d00000F04sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000080Asv*sd*bc*sc*i*
+alias:          pci:v00008086d0000811Bsv*sd*bc*sc*i*
+alias:          pci:v00008086d00003B57sv*sd*bc*sc*i*
+alias:          pci:v00008086d00003B56sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000160Csv*sd*bc*sc*i*
+alias:          pci:v00008086d00000D0Csv*sd*bc*sc*i*
+alias:          pci:v00008086d00000C0Csv*sd*bc*sc*i*
+alias:          pci:v00008086d00000A0Csv*sd*bc*sc*i*
+alias:          pci:v00008086d00003198sv*sd*bc*sc*i*
+alias:          pci:v00008086d00005A98sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004D28sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000E328sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000E428sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007728sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007F50sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A828sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000E2F7sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007E28sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CFsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CEsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CBsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CAsv*sd*bc*sc*i*
+alias:          pci:v00008086d00007A50sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004B58sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004B55sv*sd*bc*sc*i*
+alias:          pci:v00008086d000054C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CCsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CDsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051C9sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007AD0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004F92sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004F91sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004F90sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000490Dsv*sd*bc*sc*i*
+alias:          pci:v00008086d000043C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A0C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004DC8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000038C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00003DC8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000034C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000F0C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A3F0sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000F1C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000006C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000002C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009DC8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A348sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A2F0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009D71sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A171sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009D70sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A170sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009CA0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009C21sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009C20sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A270sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A1F0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00008D21sv*sd*bc*sc*i*
+alias:          pci:v00008086d00008D20sv*sd*bc*sc*i*
+alias:          pci:v00008086d00008CA0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00008C20sv*sd*bc*sc*i*
+alias:          pci:v00008086d00001E20sv*sd*bc*sc*i*
+alias:          pci:v00008086d00001D20sv*sd*bc*sc*i*
+alias:          pci:v00008086d00001C20sv*sd*bc*sc*i*
+depends:        snd-hda-codec,snd-hda-core,snd,snd-pcm,snd-intel-dspcfg
+intree:         Y
+vermagic:       6.18.39-0-lts SMP preempt mod_unload modversions
+
+$ modinfo snd_sof_pci_intel_tgl
+filename:       /lib/modules/6.18.39-0-lts/kernel/sound/soc/sof/intel/snd-sof-pci-intel-tgl.ko
+description:    SOF support for TigerLake platforms
+license:        Dual BSD/GPL
+alias:          pci:v00008086d000054C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CFsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CEsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CDsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CCsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CBsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CAsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051C9sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007A50sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007AD0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004B58sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004B55sv*sd*bc*sc*i*
+alias:          pci:v00008086d000043C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A0C8sv*sd*bc*sc*i*
+depends:        snd-sof-pci-intel-cnl,snd-soc-acpi-intel-match,snd-sof-intel-hda-common,snd-sof-intel-hda-generic,snd-sof-pci
+intree:         Y
+vermagic:       6.18.39-0-lts SMP preempt mod_unload modversions
+
+$ modinfo snd_sof_pci
+filename:       /lib/modules/6.18.39-0-lts/kernel/sound/soc/sof/snd-sof-pci.ko
+description:    SOF support for PCI platforms
+license:        Dual BSD/GPL
+parm:           ipc_type:deprecated - moved to snd-sof module.
+parm:           sof_pci_debug:SOF PCI debug options (<address> all off)
+parm:           tplg_filename:deprecated - moved to snd-sof module.
+parm:           tplg_path:deprecated - moved to snd-sof module.
+parm:           lib_path:deprecated - moved to snd-sof module.
+parm:           fw_filename:deprecated - moved to snd-sof module.
+parm:           fw_path:deprecated - moved to snd-sof module.
+depends:        snd-sof
+intree:         Y
+vermagic:       6.18.39-0-lts SMP preempt mod_unload modversions
+
+$ rc-status -a
+Runlevel: nonetwork
+Runlevel: default
+Runlevel: shutdown
+ savecache                                                         [  stopped  ]
+ killprocs                                                         [  stopped  ]
+ mount-ro                                                          [  stopped  ]
+Runlevel: boot
+ modules                                                           [  started  ]
+ hwclock                                                           [  started  ]
+ hostname                                                          [  started  ]
+ sysctl                                                            [  started  ]
+ bootmisc                                                          [  started  ]
+ syslog                                                            [  started  ]
+ networking                                                           [ failed ]
+Runlevel: sysinit
+ devfs                                                             [  started  ]
+ modloop                                                           [  started  ]
+ dmesg                                                             [  started  ]
+ mdev                                                              [  started  ]
+ hwdrivers                                                         [  started  ]
+Dynamic Runlevel: hotplugged
+Dynamic Runlevel: needed/wanted
+ sysfs                                                             [  started  ]
+ fsck                                                              [  started  ]
+ root                                                              [  started  ]
+ localmount                                                        [  started  ]
+ networking                                                           [ failed ]
+Dynamic Runlevel: manual
+ firstboot                                                         [  started  ]
+
+$ rc-update show
+             bootmisc | boot
+                devfs |                                 sysinit
+                dmesg |                                 sysinit
+  home-installer-qemu |      default
+             hostname | boot
+              hwclock | boot
+            hwdrivers |                                 sysinit
+            killprocs |                        shutdown
+                 mdev |                                 sysinit
+              modloop |                                 sysinit
+              modules | boot
+             mount-ro |                        shutdown
+           networking | boot
+            savecache |                        shutdown
+               sysctl | boot
+               syslog | boot
+
+===== cpu memory and power =====
+
+--- /proc/cpuinfo ---
+processor	: 0
+vendor_id	: AuthenticAMD
+cpu family	: 6
+model		: 6
+model name	: QEMU TCG CPU version 2.5+
+stepping	: 3
+microcode	: <address>
+cpu MHz: <dynamic>
+cache size	: 512 KB
+physical id	: 0
+siblings	: 4
+core id		: 0
+cpu cores	: 4
+apicid		: 0
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush acpi mmx fxsr sse sse2 ss ht syscall nx mmxext pdpe1gb rdtscp lm 3dnowext 3dnow nopl xtopology cpuid pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a 3dnowprefetch vmmcall fsgsbase bmi1 avx2 smep bmi2 erms mpx rdseed adx smap clflushopt clwb sha_ni xsaveopt xgetbv1 xsaveerptr wbnoinvd arat npt vgif umip pku ospke vaes la57 rdpid fsrm
+bugs		: sysret_ss_attrs spectre_v1 spectre_v2 spec_store_bypass spectre_v2_user
+bogomips: <dynamic>
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 40 bits physical, 57 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: AuthenticAMD
+cpu family	: 6
+model		: 6
+model name	: QEMU TCG CPU version 2.5+
+stepping	: 3
+microcode	: <address>
+cpu MHz: <dynamic>
+cache size	: 512 KB
+physical id	: 0
+siblings	: 4
+core id		: 1
+cpu cores	: 4
+apicid		: 1
+initial apicid	: 1
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush acpi mmx fxsr sse sse2 ss ht syscall nx mmxext pdpe1gb rdtscp lm 3dnowext 3dnow nopl xtopology cpuid pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a 3dnowprefetch vmmcall fsgsbase bmi1 avx2 smep bmi2 erms mpx rdseed adx smap clflushopt clwb sha_ni xsaveopt xgetbv1 xsaveerptr wbnoinvd arat npt vgif umip pku ospke vaes la57 rdpid fsrm
+bugs		: sysret_ss_attrs spectre_v1 spectre_v2 spec_store_bypass spectre_v2_user
+bogomips: <dynamic>
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 40 bits physical, 57 bits virtual
+power management:
+
+processor	: 2
+vendor_id	: AuthenticAMD
+cpu family	: 6
+model		: 6
+model name	: QEMU TCG CPU version 2.5+
+stepping	: 3
+microcode	: <address>
+cpu MHz: <dynamic>
+cache size	: 512 KB
+physical id	: 0
+siblings	: 4
+core id		: 2
+cpu cores	: 4
+apicid		: 2
+initial apicid	: 2
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush acpi mmx fxsr sse sse2 ss ht syscall nx mmxext pdpe1gb rdtscp lm 3dnowext 3dnow nopl xtopology cpuid pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a 3dnowprefetch vmmcall fsgsbase bmi1 avx2 smep bmi2 erms mpx rdseed adx smap clflushopt clwb sha_ni xsaveopt xgetbv1 xsaveerptr wbnoinvd arat npt vgif umip pku ospke vaes la57 rdpid fsrm
+bugs		: sysret_ss_attrs spectre_v1 spectre_v2 spec_store_bypass spectre_v2_user
+bogomips: <dynamic>
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 40 bits physical, 57 bits virtual
+power management:
+
+processor	: 3
+vendor_id	: AuthenticAMD
+cpu family	: 6
+model		: 6
+model name	: QEMU TCG CPU version 2.5+
+stepping	: 3
+microcode	: <address>
+cpu MHz: <dynamic>
+cache size	: 512 KB
+physical id	: 0
+siblings	: 4
+core id		: 3
+cpu cores	: 4
+apicid		: 3
+initial apicid	: 3
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush acpi mmx fxsr sse sse2 ss ht syscall nx mmxext pdpe1gb rdtscp lm 3dnowext 3dnow nopl xtopology cpuid pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a 3dnowprefetch vmmcall fsgsbase bmi1 avx2 smep bmi2 erms mpx rdseed adx smap clflushopt clwb sha_ni xsaveopt xgetbv1 xsaveerptr wbnoinvd arat npt vgif umip pku ospke vaes la57 rdpid fsrm
+bugs		: sysret_ss_attrs spectre_v1 spectre_v2 spec_store_bypass spectre_v2_user
+bogomips: <dynamic>
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 40 bits physical, 57 bits virtual
+power management:
+
+
+--- /proc/meminfo ---
+MemTotal:         987008 kB
+MemFree:           <value>
+MemAvailable:     <value>
+Buffers:            <value>
+Cached:           <value>
+SwapCached:            <value>
+Active:           <value>
+Inactive:         <value>
+Active(anon):     <value>
+Inactive(anon):        <value>
+Active(file):          <value>
+Inactive(file):   <value>
+Unevictable:        <value>
+Mlocked:               <value>
+SwapTotal:             <value>
+SwapFree:              <value>
+Zswap:                 <value>
+Zswapped:              <value>
+Dirty:                 <value>
+Writeback:             <value>
+AnonPages:           <value>
+Mapped:             <value>
+Shmem:            <value>
+KReclaimable:      <value>
+Slab:              <value>
+SReclaimable:      <value>
+SUnreclaim:        <value>
+KernelStack:        <value>
+PageTables:          <value>
+SecPageTables:         <value>
+NFS_Unstable:          <value>
+Bounce:                <value>
+WritebackTmp:          <value>
+CommitLimit:      <value>
+Committed_AS:     <value>
+VmallocTotal:   <value>
+VmallocUsed:        <value>
+VmallocChunk:          <value>
+Percpu:             <value>
+AnonHugePages:         <value>
+ShmemHugePages:        <value>
+ShmemPmdMapped:        <value>
+FileHugePages:         <value>
+FilePmdMapped:         <value>
+Unaccepted:            <value>
+Balloon:               <value>
+HugePages_Total:       <value>
+HugePages_Free:        <value>
+HugePages_Rsvd:        <value>
+HugePages_Surp:        <value>
+Hugepagesize:       <value>
+Hugetlb:               <value>
+DirectMap4k:       <value>
+DirectMap2M:      <value>
+DirectMap1G:           <value>
+
+--- /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver ---
+unavailable
+
+--- /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors ---
+unavailable
+
+--- /sys/power/mem_sleep ---
+s2idle [deep]
+
+--- /sys/power/state ---
+freeze mem disk
+
+--- /sys/class/power_supply ---
+
+===== firmware and boot mode =====
+
+--- /sys/firmware/efi ---
+unavailable
+
+$ efibootmgr -v
+EFI variables are not supported on this system.
+error trace:
+command exited with status 2
+
+===== pci devices and drivers =====
+
+$ lspci -nnk
+not installed
+
+/sys/bus/pci/devices/0000:00:00.0
+vendor=<address>
+device=<address>
+class=<address>
+subsystem_vendor=<address>
+subsystem_device=<address>
+modalias=pci:v00008086d00001237sv00001AF4sd00001100bc06sc00i00
+
+/sys/bus/pci/devices/0000:00:01.0
+vendor=<address>
+device=<address>
+class=<address>
+subsystem_vendor=<address>
+subsystem_device=<address>
+modalias=pci:v00008086d00007000sv00001AF4sd00001100bc06sc01i00
+
+/sys/bus/pci/devices/0000:00:01.1
+vendor=<address>
+device=<address>
+class=<address>
+subsystem_vendor=<address>
+subsystem_device=<address>
+modalias=pci:v00008086d00007010sv00001AF4sd00001100bc01sc01i80
+driver=../../../bus/pci/drivers/ata_piix
+
+/sys/bus/pci/devices/0000:00:01.3
+vendor=<address>
+device=<address>
+class=<address>
+subsystem_vendor=<address>
+subsystem_device=<address>
+modalias=pci:v00008086d00007113sv00001AF4sd00001100bc06sc80i00
+driver=../../../bus/pci/drivers/piix4_smbus
+
+/sys/bus/pci/devices/0000:00:02.0
+vendor=<address>
+device=<address>
+class=<address>
+subsystem_vendor=<address>
+subsystem_device=<address>
+modalias=pci:v00001234d00001111sv00001AF4sd00001100bc03sc00i00
+driver=../../../bus/pci/drivers/bochs-drm
+
+/sys/bus/pci/devices/0000:00:03.0
+vendor=<address>
+device=<address>
+class=<address>
+subsystem_vendor=<address>
+subsystem_device=<address>
+modalias=pci:v00001AF4d00001001sv00001AF4sd00000002bc01sc00i00
+driver=../../../bus/pci/drivers/virtio-pci
+
+/sys/bus/pci/devices/0000:00:04.0
+vendor=<address>
+device=<address>
+class=<address>
+subsystem_vendor=<address>
+subsystem_device=<address>
+modalias=pci:v00001AF4d00001001sv00001AF4sd00000002bc01sc00i00
+driver=../../../bus/pci/drivers/virtio-pci
+
+/sys/bus/pci/devices/0000:00:05.0
+vendor=<address>
+device=<address>
+class=<address>
+subsystem_vendor=<address>
+subsystem_device=<address>
+modalias=pci:v00001AF4d00001000sv00001AF4sd00000001bc02sc00i00
+driver=../../../bus/pci/drivers/virtio-pci
+
+===== usb devices =====
+
+$ lsusb
+lsusb: /sys/bus/usb/devices: No such file or directory
+
+--- /sys/bus/usb/devices ---
+unavailable
+
+===== storage and filesystems =====
+
+$ lsblk -a -o NAME,PATH,MODEL,SERIAL,SIZE,TYPE,FSTYPE,LABEL,UUID,MOUNTPOINTS
+NAME   PATH       MODEL            SERIAL   SIZE TYPE FSTYPE   LABEL                     UUID                                 MOUNTPOINTS
+ram0   /dev/ram0                              4M disk
+ram1   /dev/ram1                              4M disk
+ram2   /dev/ram2                              4M disk
+ram3   /dev/ram3                              4M disk
+ram4   /dev/ram4                              4M disk
+ram5   /dev/ram5                              4M disk
+ram6   /dev/ram6                              4M disk
+ram7   /dev/ram7                              4M disk
+ram8   /dev/ram8                              4M disk
+ram9   /dev/ram9                              4M disk
+ram10  /dev/ram10                             4M disk
+ram11  /dev/ram11                             4M disk
+ram12  /dev/ram12                             4M disk
+ram13  /dev/ram13                             4M disk
+ram14  /dev/ram14                             4M disk
+ram15  /dev/ram15                             4M disk
+fd0    /dev/fd0                               0B disk
+loop0  /dev/loop0                         319.9M loop squashfs                                                                /.modloop
+loop1  /dev/loop1                             0B loop
+loop2  /dev/loop2                             0B loop
+loop3  /dev/loop3                             0B loop
+loop4  /dev/loop4                             0B loop
+loop5  /dev/loop5                             0B loop
+loop6  /dev/loop6                             0B loop
+loop7  /dev/loop7                             0B loop
+sr0    /dev/sr0   QEMU DVD-ROM             1024M rom
+vda    /dev/vda                             1.1G disk iso9660  alpine-home 3.24.1 x86_64 <iso-date>               /media/vda
+├─vda1 /dev/vda1                            1.1G part iso9660  alpine-home 3.24.1 x86_64 <iso-date>
+└─vda2 /dev/vda2                            1.4M part vfat
+vdb    /dev/vdb                               8G disk
+
+$ blkid
+/media/vda/boot/modloop-lts: BLOCK_SIZE="131072" TYPE="squashfs"
+/dev/vda1: BLOCK_SIZE="2048" UUID="2026-07-21-07-39-16-00" LABEL="alpine-home 3.24.1 x86_64" TYPE="iso9660" PTUUID="ac8cb10c" PTTYPE="dos" PARTUUID="ac8cb10c-01"
+/dev/vda2: SEC_TYPE="msdos" BLOCK_SIZE="512" TYPE="vfat" PARTUUID="ac8cb10c-02"
+/dev/loop0: BLOCK_SIZE="131072" TYPE="squashfs"
+
+$ findmnt -A
+TARGET                   SOURCE     FSTYPE     OPTIONS
+/                        tmpfs      tmpfs      rw,relatime,mode=755,inode64
+├─/sys                   sysfs      sysfs      rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/kernel/security securityfs securityfs rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/kernel/debug    debugfs    debugfs    rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/kernel/tracing  tracefs    tracefs    rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/fs/pstore       none       pstore     rw,nosuid,nodev,noexec,relatime
+│ └─/sys/fs/bpf          bpf        bpf        rw,nosuid,nodev,noexec,relatime
+├─/dev                   devtmpfs   devtmpfs   rw,nosuid,noexec,relatime,size=10240k,nr_inodes=120016,mode=755,inode64
+│ ├─/dev/pts             devpts     devpts     rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000
+│ ├─/dev/shm             shm        tmpfs      rw,nosuid,nodev,noexec,relatime,inode64
+│ └─/dev/mqueue          mqueue     mqueue     rw,nosuid,nodev,noexec,relatime
+├─/proc                  proc       proc       rw,nosuid,nodev,noexec,relatime
+├─/media/vda             /dev/vda   iso9660    ro,relatime,nojoliet,check=s,map=n,blocksize=2048,iocharset=utf8
+├─/run                   tmpfs      tmpfs      rw,nosuid,nodev,size=197404k,nr_inodes=819200,mode=755,inode64
+└─/.modloop              /dev/loop0 squashfs   ro,relatime,errors=continue
+
+$ df -hT
+Filesystem           Type            Size      Used Available Use% Mounted on
+devtmpfs             devtmpfs       10.0M         0     10.0M   0% /dev
+shm                  tmpfs         481.9M         0    481.9M   0% /dev/shm
+/dev/vda             iso9660         1.1G      1.1G         0 100% /media/vda
+tmpfs                tmpfs         481.9M    478.0M      4.0M  99% /
+tmpfs                tmpfs         192.8M     56.0K    192.7M   0% /run
+/dev/loop0           squashfs      320.0M    320.0M         0 100% /.modloop
+
+--- /etc/fstab ---
+/dev/cdrom	/media/cdrom	iso9660	noauto,ro 0 0
+/dev/usbdisk	/media/usb	vfat	noauto,ro 0 0
+
+===== network and wireless =====
+
+$ ip address show
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
+    link/loopback <mac> brd <mac>
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether <mac> brd <mac>
+    inet 10.0.2.15/24 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fec0::5054:ff:fe12:3456/64 scope site dynamic mngtmpaddr proto kernel_ra
+       valid_lft <lifetime> preferred_lft <lifetime>
+    inet6 fe80::5054:ff:fe12:3456/64 scope link proto kernel_ll
+       valid_lft forever preferred_lft forever
+
+$ ip link show
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/loopback <mac> brd <mac>
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+    link/ether <mac> brd <mac>
+
+$ ip route show
+default via 10.0.2.2 dev eth0 metric 202
+10.0.2.0/24 dev eth0 proto kernel scope link src 10.0.2.15
+
+$ ip -6 route show
+fe80::/64 dev eth0 proto kernel metric 256 pref medium
+fec0::/64 dev eth0 proto kernel metric 256 expires <lifetime> pref medium
+default via fe80::2 dev eth0 proto ra metric 1024 expires <lifetime> hoplimit 64 pref medium
+
+$ iw dev
+not installed
+
+$ iw list
+not installed
+
+$ wpa_cli -i wlan0 status
+Failed to connect to non-global ctrl_ifname: wlan0  error: No such file or directory
+command exited with status 255
+
+--- interface eth0 ---
+address=<mac>
+operstate=up
+carrier=1
+mtu=1500
+speed=-1
+type=1
+driver=../../../../bus/virtio/drivers/virtio_net
+
+--- interface lo ---
+address=<mac>
+operstate=down
+cat: read error: Invalid argument
+carrier=
+mtu=65536
+cat: read error: Invalid argument
+speed=
+type=772
+
+--- /etc/network/interfaces ---
+unavailable
+
+--- /etc/wpa_supplicant/wpa_supplicant.conf (secrets redacted) ---
+unavailable
+
+$ rc-service networking status
+ * status: stopped
+command exited with status 3
+
+$ rc-service wpa_supplicant status
+ * status: stopped
+command exited with status 3
+
+===== display graphics and acceleration =====
+
+--- /sys/class/drm ---
+/sys/class/drm/card0
+/sys/class/drm/card0-Virtual-1
+/sys/class/drm/version
+
+--- /sys/class/drm/card0-Virtual-1 ---
+status:
+connected
+enabled:
+enabled
+modes:
+128<address>
+192<address>
+256<address>
+1856x1392
+1792x1344
+2048x1152
+192<address>
+192<address>
+192<address>
+160<address>
+168<address>
+140<address>
+128<address>
+144<address>
+128<address>
+136<address>
+128<address>
+1024x768
+80<address>
+64<address>
+64<address>
+dpms:
+On
+
+$ vainfo
+not installed
+
+$ glxinfo -B
+not installed
+
+$ weston-info
+not installed
+
+$ seatd -v
+not installed
+
+$ modinfo i915
+filename:       /lib/modules/6.18.39-0-lts/kernel/drivers/gpu/drm/i915/i915.ko
+author:         Intel Corporation
+author:         Tungsten Graphics, Inc.
+description:    Intel Graphics
+license:        GPL and additional rights
+parm:           mitigations:Selectively enable security mitigations for all Intel® GPUs in the system.
+
+  auto -- enables all mitigations required for the platform [default]
+  off  -- disables all mitigations
+
+Individual mitigations can be enabled by passing a comma-separated string,
+e.g. mitigations=residuals to enable only clearing residuals or
+mitigations=auto,noresiduals to disable only the clear residual mitigation.
+Either '!' or 'no' may be used to switch from enabling the mitigation to
+disabling it.
+
+Active mitigations for Ivybridge, Baytrail, Haswell:
+  residuals -- clear all thread-local registers between contexts
+parm:           lmem_bar_size:Set the lmem bar size(in MiB).
+parm:           lmem_size:Set the lmem size(in MiB) for each region. (default: 0, all memory)
+parm:           request_timeout_ms:Default request/fence/batch buffer expiration timeout.
+parm:           enable_gvt:Enable support for Intel GVT-g graphics virtualization host support(default:false)
+parm:           gsc_firmware_path:GSC firmware path to use instead of the default one
+parm:           huc_firmware_path:HuC firmware path to use instead of the default one
+parm:           guc_firmware_path:GuC firmware path to use instead of the default one
+parm:           guc_log_level:GuC firmware logging level. Requires GuC to be loaded. (-1=auto [default], 0=disable, 1..4=enable with verbosity min..max)
+parm:           enable_guc:Enable GuC load for GuC submission and/or HuC load. Required functionality can be selected using bitmask values. (-1=auto [default], 0=disable, 1=GuC submission, 2=HuC load)
+parm:           mmio_debug:Enable the MMIO debug code for the first N failures (default: off). This may negatively affect performance.
+parm:           memtest:Perform a read/write test of all device memory on module load (default: off)
+parm:           force_probe:Force probe options for specified supported devices. See CONFIG_DRM_I915_FORCE_PROBE for details.
+parm:           enable_hangcheck:Periodically check GPU activity for detecting hangs. WARNING: Disabling this can cause system wide hangs. (default: true)
+parm:           error_capture:Record the GPU state following a hang. This information in /sys/class/drm/card<N>/error is vital for triaging and debugging hangs.
+parm:           reset:Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])
+parm:           modeset:Deprecated. Use the 'nomodeset' kernel parameter instead.
+parm:           enable_dmc_wl:Enable DMC wakelock (-1=use per-chip default, 0=disabled, 1=enabled, 2=match any register, 3=always locked) Default: -1
+parm:           enable_psr2_sel_fetch:Enable PSR2 and Panel Replay selective fetch (0=disabled, 1=enabled) Default: 1
+parm:           psr_safest_params:Replace PSR VBT parameters by the safest and not optimal ones. This is helpful to detect if PSR issues are related to bad values set in  VBT. (0=use VBT parameters, 1=use safest parameters)Default: 0
+parm:           enable_panel_replay:Enable Panel Replay (0=disabled, 1=enabled). Default: -1 (use per-chip default)
+parm:           enable_psr:Enable PSR (0=disabled, 1=enable up to PSR1, 2=enable up to PSR2) Default: -1 (use per-chip default)
+parm:           enable_fbc:Enable frame buffer compression for power savings (default: -1 (use per-chip default))
+parm:           enable_dp_mst:Enable multi-stream transport (MST) for new DisplayPort sinks. (default: true)
+parm:           nuclear_pageflip:Force enable atomic functionality on platforms that don't have full support yet.
+parm:           verbose_state_checks:Enable verbose logs (ie. WARN_ON()) in case of unexpected hw state conditions.
+parm:           disable_display:Disable display (default: false)
+parm:           force_reset_modeset_test:Force a modeset during gpu reset for testing (default:false). For developers only.
+parm:           load_detect_test:Force-enable the VGA load detect code for testing (default:false). For developers only.
+parm:           enable_dpcd_backlight:Enable support for DPCD backlight control(-1=use per-VBT LFP backlight type setting [default], 0=disabled, 1=enable, 2=force VESA interface, 3=force Intel interface)
+parm:           edp_vswing:Ignore/Override vswing pre-emph table selection from VBT (0=use value from vbt [default], 1=low power swing(200mV),2=default swing(400mV))
+parm:           invert_brightness:Invert backlight brightness (-1 force normal, 0 machine defaults, 1 force inversion), please report PCI device ID, subsystem vendor and subsystem device ID to dri-devel@lists.freedesktop.org, if your machine needs it. It will then be included in an upcoming module version.
+parm:           enable_ips:Enable IPS (default: true)
+parm:           disable_power_well:Disable display power wells when possible (-1=auto [default], 0=power wells always on, 1=power wells disabled when possible)
+parm:           enable_sagv:Enable system agent voltage/frequency scaling (SAGV) (default: true)
+parm:           enable_flipq:Enable DMC flip queue (default: false)
+parm:           enable_dsb:Enable display state buffer (DSB) (default: true)
+parm:           enable_dpt:Enable display page table (DPT) (default: true)
+parm:           enable_dc:Enable power-saving display C-states. (-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6; 3=up to DC5 with DC3CO; 4=up to DC6 with DC3CO)
+parm:           vbt_sdvo_panel_type:Override/Ignore selection of SDVO panel mode in the VBT (-2=ignore, -1=auto [default], index in VBT BIOS table)
+parm:           panel_use_ssc:Use Spread Spectrum Clock with panels [LVDS/eDP] (default: auto from VBT)
+parm:           lvds_channel_mode:Specify LVDS channel mode (0=probe BIOS [default], 1=single-channel, 2=dual-channel)
+parm:           vbt_firmware:Load VBT from specified file under /lib/firmware
+parm:           dmc_firmware_path:DMC firmware path to use instead of the default one. Use /dev/null to disable DMC and runtime PM.
+alias:          pci:v00008086d00007DD5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D60sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D55sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D45sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D40sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000B640sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D67sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D41sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007DD1sv*sd*bc03sc*i*
+alias:          pci:v00008086d00007D51sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056C1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056C2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056C0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005697sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005696sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056B3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056B2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A4sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A3sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005695sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005694sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005693sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BDsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BCsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BBsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BAsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056B1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056B0sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A6sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005692sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005691sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005690sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BFsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056BEsv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000056A0sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7ABsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7AAsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7A8sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7A0sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A720sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7ADsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7ACsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7A9sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A7A1sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A721sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A78Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A78Asv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A789sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A788sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A783sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A782sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A781sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A780sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004909sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004908sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004907sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004906sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004905sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D4sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046D0sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046C3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046C2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046C1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046C0sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046B3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046B2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046B1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046B0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004628sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004626sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000462Asv*sd*bc03sc*i*
+alias:          pci:v00008086d000046AAsv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A8sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A6sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000046A0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004693sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004692sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004690sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000468Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000468Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00004688sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004682sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004680sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C9Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C90sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C8Csv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C8Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C8Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00004C80sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009AF8sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009AD9sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009AC9sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009AC0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A78sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A59sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A49sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A40sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A70sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A68sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009A60sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E71sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E61sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E57sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E55sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004E51sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004571sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004570sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004557sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004555sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004551sv*sd*bc03sc*i*
+alias:          pci:v00008086d00004541sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A5Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A51sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A71sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A70sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A5Csv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A5Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A5Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A59sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A58sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A57sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A56sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A54sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A53sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A52sv*sd*bc03sc*i*
+alias:          pci:v00008086d00008A50sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BCCsv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BCAsv*sd*bc03sc*i*
+alias:          pci:v00008086d00009B41sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BACsv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BAAsv*sd*bc03sc*i*
+alias:          pci:v00008086d00009B21sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BF6sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BE6sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC8sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC6sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC4sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BC2sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BA8sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BA5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BA4sv*sd*bc03sc*i*
+alias:          pci:v00008086d00009BA2sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000087CAsv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA3sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA0sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA4sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA1sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA8sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA7sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA6sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA5sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003EA9sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E9Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E94sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E9Csv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E9Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E98sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E96sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E92sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E91sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E99sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E93sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003E90sv*sd*bc03sc*i*
+alias:          pci:v00008086d000087C0sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Csv*sd*bc03sc*i*
+alias:          pci:v00008086d0000593Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00005927sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005923sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005926sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00005917sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005912sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000591Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00005921sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005916sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000590Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000590Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00005908sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005902sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005915sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000590Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00005913sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005906sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003185sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003184sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005A85sv*sd*bc03sc*i*
+alias:          pci:v00008086d00005A84sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001A85sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001A84sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A84sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000193Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000193Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000193Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001932sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000192Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000192Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000192Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001927sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001926sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001923sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000191Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000191Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000191Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001912sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000191Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00001921sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001916sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001917sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000190Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000190Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001902sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001915sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000190Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00001913sv*sd*bc03sc*i*
+alias:          pci:v00008086d00001906sv*sd*bc03sc*i*
+alias:          pci:v00008086d000022B3sv*sd*bc03sc*i*
+alias:          pci:v00008086d000022B2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000022B1sv*sd*bc03sc*i*
+alias:          pci:v00008086d000022B0sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000163Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000163Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001632sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000163Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000163Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00001636sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000162Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000162Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001622sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000162Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000162Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00001626sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000161Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000161Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001612sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000161Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000161Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00001616sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000160Dsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000160Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00001602sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000160Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000160Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00001606sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000F33sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000F32sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000F31sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000F30sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D2Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D2Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D2Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D26sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D22sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C2Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C2Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C2Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C26sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C22sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000042Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000042Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000042Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000426sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000422sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A2Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A2Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A2Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A26sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A22sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D1Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D1Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D1Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D16sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D12sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C1Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C1Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C1Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C16sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C12sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000041Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000041Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000041Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000416sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000412sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A1Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A1Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A1Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A16sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A12sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D0Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D0Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D0Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D06sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000D02sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C0Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C0Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C0Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C06sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000C02sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000040Esv*sd*bc03sc*i*
+alias:          pci:v00008086d0000040Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d0000040Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000406sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000402sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A0Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A0Bsv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A0Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A06sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000A02sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000016Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000162sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000015Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000152sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000166sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000156sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000016Asv0000152Dsd00008990bc03sc*i*
+alias:          pci:v00008086d00000126sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000116sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000106sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000122sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000112sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000010Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00000102sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000046sv*sd*bc03sc*i*
+alias:          pci:v00008086d00000042sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A011sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000A001sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E92sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E42sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E32sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E22sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E12sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002E02sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002A42sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002A12sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002A02sv*sd*bc03sc*i*
+alias:          pci:v00008086d000029D2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000029C2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000029B2sv*sd*bc03sc*i*
+alias:          pci:v00008086d000029A2sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002992sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002982sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002972sv*sd*bc03sc*i*
+alias:          pci:v00008086d000027AEsv*sd*bc03sc*i*
+alias:          pci:v00008086d000027A2sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002772sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002592sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000258Asv*sd*bc03sc*i*
+alias:          pci:v00008086d00002582sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002572sv*sd*bc03sc*i*
+alias:          pci:v00008086d0000358Esv*sd*bc03sc*i*
+alias:          pci:v00008086d00003582sv*sd*bc03sc*i*
+alias:          pci:v00008086d00002562sv*sd*bc03sc*i*
+alias:          pci:v00008086d00003577sv*sd*bc03sc*i*
+depends:        drm_display_helper,video,ttm,cec,intel-gtt,drm_buddy,hwmon,i2c-algo-bit
+intree:         Y
+vermagic:       6.18.39-0-lts SMP preempt mod_unload modversions
+firmware:       i915/mtl_gsc_1.bin
+firmware:       i915/skl_huc_2.0.0.bin
+firmware:       i915/bxt_huc_2.0.0.bin
+firmware:       i915/kbl_huc_4.0.0.bin
+firmware:       i915/glk_huc_4.0.0.bin
+firmware:       i915/kbl_huc_4.0.0.bin
+firmware:       i915/kbl_huc_4.0.0.bin
+firmware:       i915/cml_huc_4.0.0.bin
+firmware:       i915/icl_huc_9.0.0.bin
+firmware:       i915/ehl_huc_9.0.0.bin
+firmware:       i915/ehl_huc_9.0.0.bin
+firmware:       i915/tgl_huc_7.9.3.bin
+firmware:       i915/tgl_huc_7.9.3.bin
+firmware:       i915/dg1_huc.bin
+firmware:       i915/tgl_huc_7.9.3.bin
+firmware:       i915/tgl_huc.bin
+firmware:       i915/tgl_huc_7.9.3.bin
+firmware:       i915/tgl_huc.bin
+firmware:       i915/dg2_huc_gsc.bin
+firmware:       i915/mtl_huc_gsc.bin
+firmware:       i915/skl_guc_70.1.1.bin
+firmware:       i915/bxt_guc_70.1.1.bin
+firmware:       i915/kbl_guc_70.1.1.bin
+firmware:       i915/glk_guc_70.1.1.bin
+firmware:       i915/kbl_guc_70.1.1.bin
+firmware:       i915/kbl_guc_70.1.1.bin
+firmware:       i915/cml_guc_70.1.1.bin
+firmware:       i915/icl_guc_70.1.1.bin
+firmware:       i915/ehl_guc_70.1.1.bin
+firmware:       i915/ehl_guc_70.1.1.bin
+firmware:       i915/tgl_guc_70.1.1.bin
+firmware:       i915/tgl_guc_70.1.1.bin
+firmware:       i915/dg1_guc_70.bin
+firmware:       i915/tgl_guc_69.0.3.bin
+firmware:       i915/tgl_guc_70.1.1.bin
+firmware:       i915/tgl_guc_70.bin
+firmware:       i915/adlp_guc_69.0.3.bin
+firmware:       i915/adlp_guc_70.1.1.bin
+firmware:       i915/adlp_guc_70.bin
+firmware:       i915/dg2_guc_70.bin
+firmware:       i915/mtl_guc_70.bin
+firmware:       i915/bxt_dmc_ver1_07.bin
+firmware:       i915/skl_dmc_ver1_27.bin
+firmware:       i915/kbl_dmc_ver1_04.bin
+firmware:       i915/glk_dmc_ver1_04.bin
+firmware:       i915/icl_dmc_ver1_09.bin
+firmware:       i915/tgl_dmc_ver2_12.bin
+firmware:       i915/rkl_dmc_ver2_03.bin
+firmware:       i915/dg1_dmc_ver2_02.bin
+firmware:       i915/adls_dmc_ver2_01.bin
+firmware:       i915/adlp_dmc_ver2_16.bin
+firmware:       i915/adlp_dmc.bin
+firmware:       i915/dg2_dmc_ver2_08.bin
+firmware:       i915/mtl_dmc.bin
+firmware:       i915/bmg_dmc.bin
+firmware:       i915/xe2lpd_dmc.bin
+firmware:       i915/xe3lpd_dmc.bin
+firmware:       i915/xe3lpd_3002_dmc.bin
+
+--- /sys/module/i915/parameters/enable_psr ---
+unavailable
+
+--- /sys/module/i915/parameters/enable_fbc ---
+unavailable
+
+--- /sys/module/i915/parameters/enable_guc ---
+unavailable
+
+===== audio =====
+
+--- /proc/asound/cards ---
+unavailable
+
+--- /proc/asound/devices ---
+unavailable
+
+--- /proc/asound/version ---
+unavailable
+
+--- /sys/class/sound ---
+unavailable
+
+$ aplay -l
+not installed
+
+$ amixer -c 0 info
+not installed
+
+$ modinfo snd_hda_intel
+filename:       /lib/modules/6.18.39-0-lts/kernel/sound/hda/controllers/snd-hda-intel.ko
+description:    Intel HDA driver
+license:        GPL
+parm:           snoop:Enable/disable snooping
+parm:           align_buffer_size:Force buffer and period sizes to be multiple of 128 bytes.
+parm:           power_save_controller:Reset controller in power save mode.
+parm:           pm_blacklist:Enable power-management denylist
+parm:           power_save:Automatic power-saving timeout (in second, 0 = disable).
+parm:           ctl_dev_id:Use control device identifier (based on codec address).
+parm:           dmic_detect:Allow DSP driver selection (bypass this driver) (0=off, 1=on) (default=1); deprecated, use snd-intel-dspcfg.dsp_driver option instead
+parm:           beep_mode:Select HDA Beep registration mode (0=off, 1=on) (default=1).
+parm:           enable_msi:Enable Message Signaled Interrupt (MSI)
+parm:           single_cmd:Use single command to communicate with codecs (for debugging only).
+parm:           jackpoll_ms:Ms between polling for jack events (default = 0, using unsol events only)
+parm:           probe_only:Only probing and no codec initialization.
+parm:           probe_mask:Bitmask to probe codecs (default = -1).
+parm:           bdl_pos_adj:BDL position adjustment offset.
+parm:           position_fix:DMA pointer read method.(-1 = system default, 0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO, 4 = COMBO, 5 = SKL+, 6 = FIFO).
+parm:           model:Use the given board model.
+parm:           enable:Enable Intel HD audio interface.
+parm:           id:ID string for Intel HD audio interface.
+parm:           index:Index value for Intel HD audio interface.
+alias:          pci:v00000014d00007A37sv*sd*bc*sc*i*
+alias:          pci:v00000014d00007A07sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009146sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009145sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009144sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009142sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00009141sv*sd*bc*sc*i*
+alias:          pci:v00001D17d00003288sv*sd*bc*sc*i*
+alias:          pci:v00001022d*sv*sd*bc04sc03i00*
+alias:          pci:v00001002d*sv*sd*bc04sc03i00*
+alias:          pci:v000015ADd00001977sv*sd*bc*sc*i*
+alias:          pci:v000017F3d00003010sv*sd*bc*sc*i*
+alias:          pci:v000013F6d00005011sv*sd*bc*sc*i*
+alias:          pci:v00001102d00000009sv*sd*bc*sc*i*
+alias:          pci:v00001102d00000012sv*sd*bc*sc*i*
+alias:          pci:v00001102d00000010sv*sd*bc*sc*i*
+alias:          pci:v00006549d00002200sv*sd*bc*sc*i*
+alias:          pci:v00006549d00001200sv*sd*bc*sc*i*
+alias:          pci:v000010DEd*sv*sd*bc04sc03i00*
+alias:          pci:v000010B9d00005461sv*sd*bc*sc*i*
+alias:          pci:v00001039d00007502sv*sd*bc*sc*i*
+alias:          pci:v00001106d00009140sv*sd*bc*sc*i*
+alias:          pci:v00001106d00009170sv*sd*bc*sc*i*
+alias:          pci:v00001106d00003288sv*sd*bc*sc*i*
+alias:          pci:v00006766d*sv*sd*bc04sc03i00*
+alias:          pci:v00001002d0000AB40sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB38sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB30sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB28sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB20sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB18sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB10sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB08sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AB00sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAF8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAF0sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAE8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAE0sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAD8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAC8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAC0sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAB0sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAA8sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AAA0sv*sd*bc*sc*i*
+alias:          pci:v00001002d00009902sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA98sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA90sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA88sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA80sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA68sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA60sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA58sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA50sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA48sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA40sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA38sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA30sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA28sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA20sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA18sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA10sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA08sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000AA00sv*sd*bc*sc*i*
+alias:          pci:v00001002d00009840sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000970Fsv*sd*bc*sc*i*
+alias:          pci:v00001002d0000960Fsv*sd*bc*sc*i*
+alias:          pci:v00001002d00007919sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000793Bsv*sd*bc*sc*i*
+alias:          pci:v00001002d000015B3sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000157Asv*sd*bc*sc*i*
+alias:          pci:v00001002d00001308sv*sd*bc*sc*i*
+alias:          pci:v00001002d00000002sv*sd*bc*sc*i*
+alias:          pci:v00001022d000015E3sv*sd*bc*sc*i*
+alias:          pci:v00001022d0000157Asv*sd*bc*sc*i*
+alias:          pci:v00001022d00001487sv*sd*bc*sc*i*
+alias:          pci:v00001022d00001457sv*sd*bc*sc*i*
+alias:          pci:v00001022d0000780Dsv*sd*bc*sc*i*
+alias:          pci:v00001002d00004383sv*sd*bc*sc*i*
+alias:          pci:v00001002d0000437Bsv*sd*bc*sc*i*
+alias:          pci:v00008086d*sv*sd*bc04sc03i00*
+alias:          pci:v00008086d00003A6Esv*sd*bc*sc*i*
+alias:          pci:v00008086d00003A3Esv*sd*bc*sc*i*
+alias:          pci:v00008086d0000293Fsv*sd*bc*sc*i*
+alias:          pci:v00008086d0000293Esv*sd*bc*sc*i*
+alias:          pci:v00008086d0000284Bsv*sd*bc*sc*i*
+alias:          pci:v00008086d0000269Asv*sd*bc*sc*i*
+alias:          pci:v00008086d000027D8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00002668sv*sd*bc*sc*i*
+alias:          pci:v00008086d00002284sv*sd*bc*sc*i*
+alias:          pci:v00008086d00000F04sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000080Asv*sd*bc*sc*i*
+alias:          pci:v00008086d0000811Bsv*sd*bc*sc*i*
+alias:          pci:v00008086d00003B57sv*sd*bc*sc*i*
+alias:          pci:v00008086d00003B56sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000160Csv*sd*bc*sc*i*
+alias:          pci:v00008086d00000D0Csv*sd*bc*sc*i*
+alias:          pci:v00008086d00000C0Csv*sd*bc*sc*i*
+alias:          pci:v00008086d00000A0Csv*sd*bc*sc*i*
+alias:          pci:v00008086d00003198sv*sd*bc*sc*i*
+alias:          pci:v00008086d00005A98sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004D28sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000E328sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000E428sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007728sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007F50sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A828sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000E2F7sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007E28sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CFsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CEsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CBsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CAsv*sd*bc*sc*i*
+alias:          pci:v00008086d00007A50sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004B58sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004B55sv*sd*bc*sc*i*
+alias:          pci:v00008086d000054C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CCsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CDsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051C9sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007AD0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004F92sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004F91sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004F90sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000490Dsv*sd*bc*sc*i*
+alias:          pci:v00008086d000043C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A0C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004DC8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000038C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00003DC8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000034C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000F0C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A3F0sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000F1C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000006C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000002C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009DC8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A348sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A2F0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009D71sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A171sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009D70sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A170sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009CA0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009C21sv*sd*bc*sc*i*
+alias:          pci:v00008086d00009C20sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A270sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A1F0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00008D21sv*sd*bc*sc*i*
+alias:          pci:v00008086d00008D20sv*sd*bc*sc*i*
+alias:          pci:v00008086d00008CA0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00008C20sv*sd*bc*sc*i*
+alias:          pci:v00008086d00001E20sv*sd*bc*sc*i*
+alias:          pci:v00008086d00001D20sv*sd*bc*sc*i*
+alias:          pci:v00008086d00001C20sv*sd*bc*sc*i*
+depends:        snd-hda-codec,snd-hda-core,snd,snd-pcm,snd-intel-dspcfg
+intree:         Y
+vermagic:       6.18.39-0-lts SMP preempt mod_unload modversions
+
+$ modinfo snd_hda_codec_hdmi
+filename:       /lib/modules/6.18.39-0-lts/kernel/sound/hda/codecs/hdmi/snd-hda-codec-hdmi.ko
+description:    Generic HDMI HD-audio codec
+license:        GPL
+parm:           enable_all_pins:Forcibly enable all pins
+parm:           enable_acomp:Enable audio component binding (default=yes)
+parm:           static_hdmi_pcm:Don't restrict PCM parameters per ELD info
+alias:          hdaudio:v00000101r*a01*
+alias:          hdaudio:v808629FBr*a01*
+alias:          hdaudio:v80862880r*a01*
+alias:          hdaudio:v80862803r*a01*
+alias:          hdaudio:v80862802r*a01*
+alias:          hdaudio:v80862801r*a01*
+alias:          hdaudio:v67663D87r*a01*
+alias:          hdaudio:v67663D86r*a01*
+alias:          hdaudio:v67663D85r*a01*
+alias:          hdaudio:v67663D84r*a01*
+alias:          hdaudio:v67663D83r*a01*
+alias:          hdaudio:v67663D82r*a01*
+alias:          hdaudio:v1D179F90r*a01*
+alias:          hdaudio:v1D179F8Fr*a01*
+alias:          hdaudio:v1D179F8Er*a01*
+alias:          hdaudio:v1D179F8Dr*a01*
+alias:          hdaudio:v1D179F8Cr*a01*
+alias:          hdaudio:v1D179F8Br*a01*
+alias:          hdaudio:v1D179F8Ar*a01*
+alias:          hdaudio:v1D179F89r*a01*
+alias:          hdaudio:v1D179F88r*a01*
+alias:          hdaudio:v1D179F87r*a01*
+alias:          hdaudio:v1D179F86r*a01*
+alias:          hdaudio:v17E80047r*a01*
+alias:          hdaudio:v11069F85r*a01*
+alias:          hdaudio:v11069F84r*a01*
+alias:          hdaudio:v10951392r*a01*
+alias:          hdaudio:v10951390r*a01*
+alias:          hdaudio:v00147A47r*a01*
+depends:        snd-pcm,snd,snd-hda-core,snd-hda-codec
+intree:         Y
+vermagic:       6.18.39-0-lts SMP preempt mod_unload modversions
+
+$ modinfo snd_sof_pci_intel_tgl
+filename:       /lib/modules/6.18.39-0-lts/kernel/sound/soc/sof/intel/snd-sof-pci-intel-tgl.ko
+description:    SOF support for TigerLake platforms
+license:        Dual BSD/GPL
+alias:          pci:v00008086d000054C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CFsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CEsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CDsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CCsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CBsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051CAsv*sd*bc*sc*i*
+alias:          pci:v00008086d000051C9sv*sd*bc*sc*i*
+alias:          pci:v00008086d000051C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007A50sv*sd*bc*sc*i*
+alias:          pci:v00008086d00007AD0sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004B58sv*sd*bc*sc*i*
+alias:          pci:v00008086d00004B55sv*sd*bc*sc*i*
+alias:          pci:v00008086d000043C8sv*sd*bc*sc*i*
+alias:          pci:v00008086d0000A0C8sv*sd*bc*sc*i*
+depends:        snd-sof-pci-intel-cnl,snd-soc-acpi-intel-match,snd-sof-intel-hda-common,snd-sof-intel-hda-generic,snd-sof-pci
+intree:         Y
+vermagic:       6.18.39-0-lts SMP preempt mod_unload modversions
+
+$ modinfo snd_sof_pci
+filename:       /lib/modules/6.18.39-0-lts/kernel/sound/soc/sof/snd-sof-pci.ko
+description:    SOF support for PCI platforms
+license:        Dual BSD/GPL
+parm:           ipc_type:deprecated - moved to snd-sof module.
+parm:           sof_pci_debug:SOF PCI debug options (<address> all off)
+parm:           tplg_filename:deprecated - moved to snd-sof module.
+parm:           tplg_path:deprecated - moved to snd-sof module.
+parm:           lib_path:deprecated - moved to snd-sof module.
+parm:           fw_filename:deprecated - moved to snd-sof module.
+parm:           fw_path:deprecated - moved to snd-sof module.
+depends:        snd-sof
+intree:         Y
+vermagic:       6.18.39-0-lts SMP preempt mod_unload modversions
+
+===== alpine packages and configuration =====
+
+$ apk info
+acl-libs
+agetty
+agetty-openrc
+alpine-base
+alpine-baselayout
+alpine-baselayout-data
+alpine-conf
+alpine-keys
+alpine-release
+apk-tools
+bind-libs
+bind-tools
+blkid
+bridge
+busybox
+busybox-binsh
+busybox-mdev-openrc
+busybox-openrc
+busybox-suid
+ca-certificates-bundle
+cfdisk
+dbus-libs
+dmesg
+dosfstools
+e2fsprogs
+e2fsprogs-libs
+efibootmgr
+efivar-libs
+findmnt
+flock
+fstrim
+fstrm
+hexdump
+ifupdown-ng
+ifupdown-ng-iproute2
+ifupdown-ng-wifi
+iproute2
+iproute2-minimal
+iproute2-ss
+iproute2-tc
+json-c
+keyutils-libs
+krb5-conf
+krb5-libs
+libapk
+libblkid
+libcap-ng
+libcap2
+libcom_err
+libcrypto3
+libeconf
+libelf
+libfdisk
+libintl
+libmnl
+libmount
+libncursesw
+libnl3
+libsmartcols
+libssl3
+libuuid
+libuv
+libverto
+libxml2
+libxtables
+linux-pam
+logger
+losetup
+lsblk
+lscpu
+mcookie
+mdev-conf
+mount
+musl
+musl-utils
+ncurses-terminfo-base
+nghttp2-libs
+openrc
+openrc-user
+partx
+pcsc-lite-libs
+popt
+protobuf-c
+runuser
+scanelf
+setarch
+setpriv
+sfdisk
+skalibs-libs
+ssl_client
+tar
+umount
+userspace-rcu
+util-linux
+util-linux-misc
+util-linux-openrc
+utmps-libs
+uuidgen
+wipefs
+wpa_supplicant
+wpa_supplicant-openrc
+xz-libs
+zlib
+zstd-libs
+
+--- /etc/apk/world ---
+alpine-base
+bind-tools
+blkid
+dosfstools
+e2fsprogs
+efibootmgr
+findmnt
+ifupdown-ng
+iproute2
+lsblk
+partx
+sfdisk
+tar
+util-linux
+wipefs
+wpa_supplicant
+
+--- /etc/apk/repositories ---
+/media/vda/apks
+
+--- /etc/inittab ---
+# /etc/inittab
+
+::sysinit:/sbin/openrc sysinit
+::sysinit:/sbin/openrc boot
+::wait:/sbin/openrc default
+
+# Set up a couple of getty's
+tty1::respawn:/sbin/getty 38400 tty1
+tty2::respawn:/sbin/getty 38400 tty2
+tty3::respawn:/sbin/getty 38400 tty3
+tty4::respawn:/sbin/getty 38400 tty4
+tty5::respawn:/sbin/getty 38400 tty5
+tty6::respawn:/sbin/getty 38400 tty6
+
+# Put a getty on the serial port
+#ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100
+
+# Stuff to do for the 3-finger salute
+::ctrlaltdel:/sbin/reboot
+
+# Stuff to do before rebooting
+::shutdown:/sbin/openrc shutdown
+
+# enable login on alternative console
+ttyS0::respawn:/sbin/getty -L 0 ttyS0 vt100
+# enable login on alternative console
+tty0::respawn:/sbin/getty -L 0 tty0 vt100
+
+$ rc-status
+Runlevel: default
+Dynamic Runlevel: hotplugged
+Dynamic Runlevel: needed/wanted
+ sysfs                                                             [  started  ]
+ fsck                                                              [  started  ]
+ root                                                              [  started  ]
+ localmount                                                        [  started  ]
+ networking                                                           [ failed ]
+Dynamic Runlevel: manual
+ firstboot                                                         [  started  ]
+
+$ rc-update show
+             bootmisc | boot
+                devfs |                                 sysinit
+                dmesg |                                 sysinit
+  home-installer-qemu |      default
+             hostname | boot
+              hwclock | boot
+            hwdrivers |                                 sysinit
+            killprocs |                        shutdown
+                 mdev |                                 sysinit
+              modloop |                                 sysinit
+              modules | boot
+             mount-ro |                        shutdown
+           networking | boot
+            savecache |                        shutdown
+               sysctl | boot
+               syslog | boot
+
+--- /etc/adjtime ---
+unavailable
+
+$ readlink /etc/localtime
+command exited with status 1
+
+$ locale
+/tmp/fetch.sh: line 20: locale: not found
+command exited with status 127
+
+--- /etc/resolv.conf ---
+nameserver 10.0.2.3
+
+===== recent logs =====
+
+--- tail /var/log/apk.log ---
+
+Running `apk add --root /sysroot --initdb --quiet` at <timestamp>
+apk-tools 3.0.6-r0, compiled for x86_64.
+
+Running `apk add --root /sysroot --repository /media/vda/apks --initramfs-diskless-boot --progress --no-network --clean-protected --overlay-from-stdin bind-tools blkid dosfstools e2fsprogs efibootmgr findmnt ifupdown-ng iproute2 lsblk partx sfdisk tar util-linux wipefs wpa_supplicant alpine-base` at <timestamp>
+apk-tools 3.0.6-r0, compiled for x86_64.
+(  1/104) Installing alpine-baselayout-data (3.7.2-r1)
+(  2/104) Installing musl (1.2.6-r2)
+(  3/104) Installing busybox (1.37.0-r31)
+  Executing busybox-1.37.0-r31.post-install
+(  4/104) Installing busybox-binsh (1.37.0-r31)
+(  5/104) Installing alpine-baselayout (3.7.2-r1)
+  Executing alpine-baselayout-3.7.2-r1.pre-install
+  Executing alpine-baselayout-3.7.2-r1.post-install
+(  6/104) Installing bridge (1.5-r5)
+(  7/104) Installing ifupdown-ng (0.13.0-r0)
+(  8/104) Installing openrc-user (0.63.2-r0)
+(  9/104) Installing libcap2 (2.78-r0)
+( 10/104) Installing openrc (0.63.2-r0)
+  Executing openrc-0.63.2-r0.post-install
+( 11/104) Installing alpine-conf (3.22.0-r0)
+( 12/104) Installing alpine-keys (2.6-r0)
+( 13/104) Installing alpine-release (3.24.1-r0)
+( 14/104) Installing libcrypto3 (3.5.7-r0)
+( 15/104) Installing libssl3 (3.5.7-r0)
+( 16/104) Installing ssl_client (1.37.0-r31)
+( 17/104) Installing zlib (1.3.2-r0)
+( 18/104) Installing libapk (3.0.6-r0)
+( 19/104) Installing ca-certificates-bundle (20260611-r0)
+( 20/104) Installing apk-tools (3.0.6-r0)
+( 21/104) Installing mdev-conf (4.10-r0)
+( 22/104) Installing busybox-mdev-openrc (1.37.0-r31)
+( 23/104) Installing busybox-openrc (1.37.0-r31)
+( 24/104) Installing busybox-suid (1.37.0-r31)
+( 25/104) Installing scanelf (1.3.9-r1)
+( 26/104) Installing musl-utils (1.2.6-r2)
+( 27/104) Installing alpine-base (3.24.1-r0)
+( 28/104) Installing fstrm (0.6.1-r4)
+( 29/104) Installing krb5-conf (1.0-r2)
+( 30/104) Installing libcom_err (1.47.4-r0)
+( 31/104) Installing keyutils-libs (1.6.3-r4)
+( 32/104) Installing libverto (0.3.2-r2)
+( 33/104) Installing krb5-libs (1.22.2-r1)
+( 34/104) Installing json-c (0.18-r1)
+( 35/104) Installing nghttp2-libs (1.69.0-r0)
+( 36/104) Installing protobuf-c (1.5.2-r2)
+( 37/104) Installing userspace-rcu (0.15.3-r0)
+( 38/104) Installing libuv (1.52.1-r0)
+( 39/104) Installing xz-libs (5.8.3-r0)
+( 40/104) Installing libxml2 (2.13.9-r2)
+( 41/104) Installing bind-libs (9.20.24-r0)
+( 42/104) Installing bind-tools (9.20.24-r0)
+( 43/104) Installing libeconf (0.8.3-r0)
+( 44/104) Installing libblkid (2.42.1-r0)
+( 45/104) Installing blkid (2.42.1-r0)
+( 46/104) Installing dosfstools (4.2-r2)
+( 47/104) Installing e2fsprogs-libs (1.47.4-r0)
+( 48/104) Installing libuuid (2.42.1-r0)
+( 49/104) Installing e2fsprogs (1.47.4-r0)
+( 50/104) Installing efivar-libs (39-r1)
+( 51/104) Installing libintl (1.0-r0)
+( 52/104) Installing popt (1.19-r4)
+( 53/104) Installing efibootmgr (18-r2)
+( 54/104) Installing libmount (2.42.1-r0)
+( 55/104) Installing libsmartcols (2.42.1-r0)
+( 56/104) Installing findmnt (2.42.1-r0)
+( 57/104) Installing zstd-libs (1.5.7-r2)
+( 58/104) Installing libelf (0.195-r0)
+( 59/104) Installing libmnl (1.0.5-r2)
+( 60/104) Installing iproute2-minimal (7.0.0-r0)
+( 61/104) Installing ifupdown-ng-iproute2 (0.13.0-r0)
+( 62/104) Installing libxtables (1.8.13-r0)
+( 63/104) Installing iproute2-tc (7.0.0-r0)
+( 64/104) Installing iproute2-ss (7.0.0-r0)
+( 65/104) Installing iproute2 (7.0.0-r0)
+  Executing iproute2-7.0.0-r0.post-install
+( 66/104) Installing ncurses-terminfo-base (6.6_p20260516-r0)
+( 67/104) Installing libncursesw (6.6_p20260516-r0)
+( 68/104) Installing lsblk (2.42.1-r0)
+( 69/104) Installing partx (2.42.1-r0)
+( 70/104) Installing libfdisk (2.42.1-r0)
+( 71/104) Installing sfdisk (2.42.1-r0)
+( 72/104) Installing acl-libs (2.3.2-r1)
+( 73/104) Installing tar (1.35-r5)
+( 74/104) Installing util-linux (2.42.1-r0)
+( 75/104) Installing dmesg (2.42.1-r0)
+( 76/104) Installing setarch (2.42.1-r0)
+( 77/104) Installing skalibs-libs (2.15.0.0-r0)
+( 78/104) Installing utmps-libs (0.1.3.3-r0)
+( 79/104) Installing util-linux-misc (2.42.1-r0)
+( 80/104) Installing linux-pam (1.7.1-r2)
+( 81/104) Installing runuser (2.42.1-r0)
+( 82/104) Installing mount (2.42.1-r0)
+( 83/104) Installing losetup (2.42.1-r0)
+( 84/104) Installing hexdump (2.42.1-r0)
+( 85/104) Installing uuidgen (2.42.1-r0)
+( 86/104) Installing mcookie (2.42.1-r0)
+( 87/104) Installing agetty (2.42.1-r0)
+( 88/104) Installing agetty-openrc (0.63.2-r0)
+( 89/104) Installing wipefs (2.42.1-r0)
+( 90/104) Installing cfdisk (2.42.1-r0)
+( 91/104) Installing umount (2.42.1-r0)
+( 92/104) Installing util-linux-openrc (2.42.1-r0)
+( 93/104) Installing flock (2.42.1-r0)
+( 94/104) Installing libcap-ng (0.8.5-r2)
+( 95/104) Installing setpriv (2.42.1-r0)
+( 96/104) Installing lscpu (2.42.1-r0)
+( 97/104) Installing logger (2.42.1-r0)
+( 98/104) Installing fstrim (2.42.1-r0)
+( 99/104) Installing dbus-libs (1.16.2-r2)
+(100/104) Installing libnl3 (3.11.0-r0)
+(101/104) Installing pcsc-lite-libs (2.4.0-r4)
+(102/104) Installing wpa_supplicant (2.11-r4)
+(103/104) Installing wpa_supplicant-openrc (2.11-r4)
+(104/104) Installing ifupdown-ng-wifi (0.13.0-r0)
+Executing busybox-1.37.0-r31.trigger
+OK: 32.2 MiB in 104 packages
+
+--- tail /var/log/dmesg ---
+[time] acpiphp: Slot [28] registered
+[time] acpiphp: Slot [29] registered
+[time] acpiphp: Slot [30] registered
+[time] acpiphp: Slot [31] registered
+[time] PCI host bridge to bus 0000:00
+[time] pci_bus 0000:00: root bus resource [io  <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [io  <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [mem <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [mem <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [mem <address>-<address> window]
+[time] pci_bus 0000:00: root bus resource [bus 00-ff]
+[time] pci 0000:00:00.0: [8086:1237] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.0: [8086:7000] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.1: [8086:7010] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.1: BAR 4 [io  <address>-<address>]
+[time] pci 0000:00:01.1: BAR 0 [io  <address>-<address>]: legacy IDE quirk
+[time] pci 0000:00:01.1: BAR 1 [io  <address>]: legacy IDE quirk
+[time] pci 0000:00:01.1: BAR 2 [io  <address>-<address>]: legacy IDE quirk
+[time] pci 0000:00:01.1: BAR 3 [io  <address>]: legacy IDE quirk
+[time] pci 0000:00:01.3: [8086:7113] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:01.3: quirk: [io  <address>-<address>] claimed by PIIX4 ACPI
+[time] pci 0000:00:01.3: quirk: [io  <address>-<address>] claimed by PIIX4 SMB
+[time] pci 0000:00:02.0: [1234:1111] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:02.0: BAR 0 [mem <address>-<address> pref]
+[time] pci 0000:00:02.0: BAR 2 [mem <address>-<address>]
+[time] pci 0000:00:02.0: ROM [mem <address>-<address> pref]
+[time] pci 0000:00:02.0: Video device with shadowed ROM at [mem <address>-<address>]
+[time] pci 0000:00:03.0: [1af4:1001] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:03.0: BAR 0 [io  <address>-<address>]
+[time] pci 0000:00:03.0: BAR 1 [mem <address>-<address>]
+[time] pci 0000:00:03.0: BAR 4 [mem <address>-<address> 64bit pref]
+[time] pci 0000:00:04.0: [1af4:1001] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:04.0: BAR 0 [io  <address>-<address>]
+[time] pci 0000:00:04.0: BAR 1 [mem <address>-<address>]
+[time] pci 0000:00:04.0: BAR 4 [mem <address>-<address> 64bit pref]
+[time] pci 0000:00:05.0: [1af4:1000] type 00 class <address> conventional PCI endpoint
+[time] pci 0000:00:05.0: BAR 0 [io  <address>-<address>]
+[time] pci 0000:00:05.0: BAR 1 [mem <address>-<address>]
+[time] pci 0000:00:05.0: BAR 4 [mem <address>-<address> 64bit pref]
+[time] pci 0000:00:05.0: ROM [mem <address>-<address> pref]
+[time] ACPI: PCI: Interrupt link LNKA configured for IRQ 10
+[time] ACPI: PCI: Interrupt link LNKB configured for IRQ 10
+[time] ACPI: PCI: Interrupt link LNKC configured for IRQ 11
+[time] ACPI: PCI: Interrupt link LNKD configured for IRQ 11
+[time] ACPI: PCI: Interrupt link LNKS configured for IRQ 9
+[time] iommu: Default domain type: Translated
+[time] iommu: DMA domain TLB invalidation policy: lazy mode
+[time] pps_core: LinuxPPS API ver. 1 registered
+[time] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[time] PTP clock support registered
+[time] EDAC MC: Ver: 3.0.0
+[time] PCI: Using ACPI for IRQ routing
+[time] PCI: pci_cache_line_size set to 64 bytes
+[time] e820: reserve RAM buffer [mem <address>-<address>]
+[time] e820: reserve RAM buffer [mem <address>-<address>]
+[time] pci 0000:00:02.0: vgaarb: setting as boot VGA device
+[time] pci 0000:00:02.0: vgaarb: bridge control possible
+[time] pci 0000:00:02.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
+[time] vgaarb: loaded
+[time] hpet0: at MMIO <address>, IRQs 2, 8, 0
+[time] hpet0: 3 comparators, 64-bit 100.000000 MHz counter
+[time] clocksource: Switched to clocksource tsc-early
+[time] VFS: Disk quotas dquot_6.6.0
+[time] VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
+[time] pnp: PnP ACPI init
+[time] pnp 00:02: [dma 2]
+[time] pnp: PnP ACPI: found 6 devices
+[time] clocksource: acpi_pm: mask: <address> max_cycles: <address>, max_idle_ns: 2085701024 ns
+[time] NET: Registered PF_INET protocol family
+[time] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[time] tcp_listen_portaddr_hash hash table entries: 512 (order: 1, 8192 bytes, linear)
+[time] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[time] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[time] TCP bind hash table entries: 8192 (order: 6, 262144 bytes, linear)
+[time] TCP: Hash tables configured (established 8192 bind 8192)
+[time] MPTCP token hash table entries: 1024 (order: 3, 24576 bytes, linear)
+[time] UDP hash table entries: 512 (order: 3, 32768 bytes, linear)
+[time] UDP-Lite hash table entries: 512 (order: 3, 32768 bytes, linear)
+[time] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[time] NET: Registered PF_XDP protocol family
+[time] pci_bus 0000:00: resource 4 [io  <address>-<address> window]
+[time] pci_bus 0000:00: resource 5 [io  <address>-<address> window]
+[time] pci_bus 0000:00: resource 6 [mem <address>-<address> window]
+[time] pci_bus 0000:00: resource 7 [mem <address>-<address> window]
+[time] pci_bus 0000:00: resource 8 [mem <address>-<address> window]
+[time] pci 0000:00:01.0: PIIX3: Enabling Passive Release
+[time] pci 0000:00:00.0: Limiting direct PCI/PCI transfers
+[time] PCI: CLS 0 bytes, default 64
+[time] Trying to unpack rootfs image as initramfs...
+[time] Initialise system trusted keyrings
+[time] workingset: timestamp_bits=40 max_order=18 bucket_order=0
+[time] Key type asymmetric registered
+[time] Asymmetric key parser 'x509' registered
+[time] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 245)
+[time] io scheduler mq-deadline registered
+[time] io scheduler kyber registered
+[time] io scheduler bfq registered
+[time] ERST DBG: ERST support is disabled.
+[time] Serial: 8250/16550 driver, 4 ports, IRQ sharing enabled
+[time] 00:04: ttyS0 at I/O <address> (irq = 4, base_baud = 115200) is a 16550A
+[time] Linux agpgart interface v0.103
+[time] ACPI: bus type drm_connector registered
+[time] brd: module loaded
+[time] i8042: PNP: PS/2 Controller [PNP0303:KBD,PNP0f13:MOU] at <address>,<address> irq 1,12
+[time] serio: i8042 KBD port at <address>,<address> irq 1
+[time] serio: i8042 AUX port at <address>,<address> irq 12
+[time] rtc_cmos 00:05: RTC can wake from S4
+[time] rtc_cmos 00:05: registered as rtc0
+[time] rtc_cmos <system clock>
+[time] rtc_cmos 00:05: alarms up to one day, y3k, 242 bytes nvram, hpet irqs
+[time] amd_pstate: the _CPC object is not present in SBIOS or ACPI disabled
+[time] gre: GRE over IPv4 demultiplexer driver
+[time] NET: Registered PF_INET6 protocol family
+[time] Segment Routing with IPv6
+[time] In-situ OAM (IOAM) with IPv6
+[time] can: controller area network core
+[time] NET: Registered PF_CAN protocol family
+[time] Key type dns_resolver registered
+[time] IPI shorthand broadcast: enabled
+[time] sched_clock: <calibration>
+[time] registered taskstats version 1
+[time] Loading compiled-in X.509 certificates
+[time] tsc: Refined TSC clocksource calibration: 1000.000 MHz
+[time] clocksource: tsc: mask: <address> max_cycles: <address>, max_idle_ns: 881590591483 ns
+[time] clocksource: Switched to clocksource tsc
+[time] Freeing initrd memory: 21960K
+[time] Loaded X.509 cert 'alpinelinux.org: Alpine Linux kernel key: d76a695f66ad9cd28f5c22a8508f36e91f521f7a'
+[time] Demotion targets for Node 0: null
+[time] Key type .fscrypt registered
+[time] Key type fscrypt-provisioning registered
+[time] clk: Disabling unused clocks
+[time] PM: genpd: Disabling unused power domains
+[time] Freeing unused kernel image (initmem) memory: 3832K
+[time] Write protecting the kernel read-only data: 28672k
+[time] Freeing unused kernel image (text/rodata gap) memory: 68K
+[time] Freeing unused kernel image (rodata/data gap) memory: 1016K
+[time] Run /init as init process
+[time]   with arguments:
+[time]     /init
+[time]   with environment:
+[time]     HOME=/
+[time]     TERM=linux
+[time]     home_installer_qemu=1
+[time] Alpine Init 3.14.0-r0
+[time] Loading boot drivers...
+[time] loop: module loaded
+[time] squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[time] Loading boot drivers: ok.
+[time] Mounting boot media...
+[time] ACPI: \_SB_.LNKC: Enabled at IRQ 11
+[time] ACPI: \_SB_.LNKD: Enabled at IRQ 10
+[time] ACPI: \_SB_.LNKA: Enabled at IRQ 10
+[time] SCSI subsystem initialized
+[time] libata version 3.00 loaded.
+[time] scsi host0: ata_piix
+[time] scsi host1: ata_piix
+[time] ata1: PATA max MWDMA2 cmd <address> ctl <address> bmdma <address> irq 14 lpm-pol 0
+[time] ata2: PATA max MWDMA2 cmd <address> ctl <address> bmdma <address> irq 15 lpm-pol 0
+[time] ata2: found unknown device (class 0)
+[time] ata2.00: ATAPI: QEMU DVD-ROM, 2.5+, max UDMA/100
+[time] scsi 1:0:0:0: CD-ROM            QEMU     QEMU DVD-ROM     2.5+ PQ: 0 ANSI: 5
+[time] virtio_blk virtio0: 4/0/0 default/read/poll queues
+[time] virtio_blk virtio0: [vda] 2232960 512-byte logical blocks (1.14 GB/1.06 GiB)
+[time]  vda: vda1 vda2
+[time] virtio_blk virtio1: 4/0/0 default/read/poll queues
+[time] virtio_blk virtio1: [vdb] 16777216 512-byte logical blocks (8.59 GB/8.00 GiB)
+[time] sr 1:0:0:0: [sr0] scsi3-mmc drive: 4x/4x cd/rw xa/form2 tray
+[time] cdrom: Uniform CD-ROM driver Revision: 3.20
+[time] sr 1:0:0:0: Attached scsi CD-ROM sr0
+[time] block sr0: the capability attribute has been deprecated.
+[time] ISO 9660 Extensions: RRIP_1991A
+[time] Mounting boot media: ok.
+[time] Loading user settings from /media/vda/home-installer.apkovl.tar.gz...
+[time] Loading user settings from /media/vda/home-installer.apkovl.tar.gz: ok.
+[time] Installing packages to root filesystem...
+[time] Installing packages to root filesystem: ok.
+[time] loop0: detected capacity change from 0 to 655152
+[time] ACPI: button: Power Button [PWRF]
+[time] parport_pc 00:03: reported by Plug and Play ACPI
+[time] parport0: PC-style at <address>, irq 7 [PCSPP(,...)]
+[time] Floppy drive(s): fd0 is 2.88M AMI BIOS
+[time] FDC 0 is a S82078B
+[time] bochs-drm 0000:00:02.0: vgaarb: deactivate vga console
+[time] Console: switching to colour dummy device 8<address>
+[time] [drm] Found bochs VGA, ID <address>.
+[time] [drm] Framebuffer size 16384 kB @ <address>, mmio @ <address>.
+[time] [drm] Initialized bochs-drm 1.0.0 for 0000:00:02.0 on minor 0
+[time] fbcon: bochs-drmdrmfb (fb0) is primary device
+[time] Console: switching to colour frame buffer device 16<address>
+[time] bochs-drm 0000:00:02.0: [drm] fb0: bochs-drmdrmfb frame buffer device
+[time] piix4_smbus 0000:00:01.3: SMBus Host Controller at <address>, revision 0
+[time] i2c i2c-0: Memory type <address> not supported yet, not instantiating SPD
+[time] mousedev: PS/2 mouse device common for all mice
+[time] NET: Registered PF_PACKET protocol family
+
+--- tail /var/log/messages ---
+<syslog> syslog.info syslogd started: BusyBox v1.37.0
+<syslog> daemon.info init: starting pid <pid>, tty '': '/sbin/openrc default'
+<syslog> daemon.err networking[<pid>]: ERROR: networking failed to start
+
+--- tail /var/log/wtmp ---
+
+===== diagnostic summary =====
+log=/tmp/fetch.log
+collected_at=<date>
+Attach /tmp/fetch.log when reporting hardware problems.
+QEMU diagnostics fixture passed.

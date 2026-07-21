@@ -7,6 +7,8 @@ rootfs=$1
 cp /etc/apk/repositories "$rootfs/etc/apk/repositories"
 /bin/busybox --install -s "$rootfs/bin"
 ln -sf /bin/busybox "$rootfs/sbin/init"
+cp /work/fetch.sh "$rootfs/bin/fetch.sh"
+chmod 0755 "$rootfs/bin/fetch.sh"
 
 home="$rootfs/home/josh"
 mkdir -p "$home"

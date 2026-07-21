@@ -8,6 +8,7 @@ ENV BUILDARCH=$BUILDARCH TARGETARCH=$TARGETARCH
 
 RUN apk add --no-cache apk-tools-static binutils lddtree kmod qemu-x86_64 tar gzip
 COPY rootfs-packages.txt /work/rootfs-packages.txt
+COPY rootfs/fetch.sh /work/fetch.sh
 COPY rootfs/configure.sh /work/configure-rootfs.sh
 COPY build/build-rootfs.sh /work/build-rootfs.sh
 RUN chmod +x /work/configure-rootfs.sh /work/build-rootfs.sh && /work/build-rootfs.sh

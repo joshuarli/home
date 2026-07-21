@@ -115,6 +115,16 @@ udhcpc -i "$wifi_iface" -q -n >/dev/null 2>&1 || die "DHCP failed"
 nslookup dl-cdn.alpinelinux.org >/dev/null 2>&1 || die "DNS verification failed"
 echo "Network preflight passed."
 
+if [ "$is_qemu" = 1 ] && [ "${FETCH_FIXTURE:-0}" = 1 ]; then
+    fetch_fixture=/tmp/fetch.sh
+    tar -xOzf "$archive" ./bin/fetch.sh > "$fetch_fixture" || die "could not extract fetch fixture"
+    chmod 0755 "$fetch_fixture"
+    "$fetch_fixture" || die "fetch fixture failed"
+    [ -s /tmp/fetch.log ] || die "fetch fixture did not create /tmp/fetch.log"
+    grep -q 'diagnostic summary' /tmp/fetch.log || die "fetch fixture log is incomplete"
+    echo "QEMU diagnostics fixture passed."
+fi
+
 installer_source=$(findmnt -no SOURCE /media/cdrom 2>/dev/null || true)
 installer_disk=$installer_source
 

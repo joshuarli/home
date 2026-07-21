@@ -37,6 +37,7 @@ rm -f "$rootfs/tmp/home-installer-initramfs"
 
 cat > "$rootfs/tmp/home-installer-smoke.sh" <<'CHROOT'
 test -x /sbin/init
+test -x /bin/fetch.sh
 apk --version
 id josh
 test "$(getent passwd josh | cut -d: -f7)" = /bin/ash
@@ -57,6 +58,7 @@ if [ "$BUILDARCH" = "$TARGETARCH" ]; then
     chroot "$rootfs" /bin/sh -eux /tmp/home-installer-smoke.sh
 else
     test -x "$rootfs/sbin/init"
+    test -x "$rootfs/bin/fetch.sh"
     "$rootfs/sbin/apk" --root "$rootfs" --print-arch
     grep -q '^josh:' "$rootfs/etc/passwd"
     grep -q '^josh:x:1000:1000:.*:/bin/ash$' "$rootfs/etc/passwd"

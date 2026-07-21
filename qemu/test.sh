@@ -7,6 +7,8 @@ vm_dir=${disk%/*}
 log="$vm_dir/test.log"
 kernel="$vm_dir/vmlinuz-lts"
 initrd="$vm_dir/initramfs-lts"
+fixture=${QEMU_FETCH_FIXTURE:-qemu/fetch.fixture}
+normalizer=${QEMU_FETCH_NORMALIZER:-qemu/normalize-fetch.sh}
 
 require_command() {
     command -v "$1" >/dev/null 2>&1 || {
@@ -19,6 +21,23 @@ require_command qemu-system-x86_64
 require_command qemu-img
 require_command bsdtar
 [ -f "$iso" ] || { echo "ISO not found: $iso" >&2; exit 1; }
+[ -f "$fixture" ] || { echo "QEMU fetch fixture not found: $fixture" >&2; exit 1; }
+[ -x "$normalizer" ] || { echo "QEMU fetch normalizer is not executable: $normalizer" >&2; exit 1; }
+
+validate_fetch_fixture() {
+    normalized="$vm_dir/fetch.normalized.log"
+    "$normalizer" "$log" > "$normalized"
+    diff -u "$fixture" "$normalized"
+}
+
+report_pass() {
+    validate_fetch_fixture || {
+        echo "QEMU diagnostics fixture did not match serial output: $log" >&2
+        tail -80 "$log" >&2 2>/dev/null || true
+        exit 1
+    }
+    echo "QEMU installer test passed. Disk left at $disk"
+}
 
 mkdir -p "$vm_dir"
 rm -f "$disk" "$kernel" "$initrd" "$log"
@@ -53,7 +72,7 @@ attempt=0
 while [ "$(ps -p "$qemu_pid" -o stat= 2>/dev/null | tr -d ' ')" != "" ] &&
     ! ps -p "$qemu_pid" -o stat= 2>/dev/null | tr -d ' ' | grep -q '^Z'; do
     if grep -q 'Installation complete\.' "$log" 2>/dev/null; then
-        echo "QEMU installer test passed. Disk left at $disk"
+        report_pass
         kill "$qemu_pid" 2>/dev/null || true
         wait "$qemu_pid" 2>/dev/null || true
         trap - EXIT INT TERM
@@ -69,7 +88,7 @@ while [ "$(ps -p "$qemu_pid" -o stat= 2>/dev/null | tr -d ' ')" != "" ] &&
 done
 
 if grep -q 'Installation complete\.' "$log" 2>/dev/null; then
-    echo "QEMU installer test passed. Disk left at $disk"
+    report_pass
     exit 0
 fi
 

@@ -128,11 +128,19 @@ It is responsible for:
 - writing the kernel-hook command line template;
 - replacing the default tty entries with tty1 auto-login;
 - enabling the Alpine `hwclock` service in the boot runlevel;
+- installing `/bin/fetch.sh`, which captures hardware, kernel, graphics,
+  audio, networking, firmware, storage, package, and Alpine service diagnostics
+  to `/tmp/fetch.log` while also printing them to the terminal;
 - removing the target APK cache.
 
 The placeholder `INSTALLER_ROOT_PARTUUID` is replaced by the installer after
 partitioning. It must not be replaced during the image build because the
 target disk does not exist yet.
+
+After booting the installed system, run `/bin/fetch.sh` to collect a broad
+hardware and software diagnostic report. It prints the report and writes it to
+`/tmp/fetch.log`; use `doas /bin/fetch.sh` when unrestricted kernel and device
+access is needed. Wi-Fi credentials are redacted from the report.
 
 ### `build/build-rootfs.sh`
 
@@ -447,6 +455,19 @@ the DMI identity and invokes the real installer with:
 ```text
 IS_QEMU=1 INSTALLER_DISK=/dev/vda QEMU_NET_IFACE=eth0
 ```
+
+The QEMU overlay also sets `FETCH_FIXTURE=1`. Before touching the target disk,
+the installer extracts the prepared `/bin/fetch.sh` from the rootfs archive and
+runs it against the live QEMU environment. It requires `/tmp/fetch.log` and a
+completed diagnostic summary, so `make test` exercises the diagnostic tool as
+well as the installer. This fixture is gated by both `IS_QEMU=1` and
+`FETCH_FIXTURE=1` and cannot run during a physical installation.
+The checked-in `qemu/fetch.fixture` is a detailed normalized golden transcript,
+not just a presence check. `qemu/normalize-fetch.sh` canonicalizes only known
+runtime noise such as timestamps, PIDs, UUIDs, MAC addresses, CPU calibration,
+lease countdowns, and volatile memory counters; the remaining report must
+match the fixture exactly. This keeps the QEMU diagnostic contract detailed
+while avoiding false failures from runtime timing.
 
 The test mode therefore skips only physical assumptions that QEMU cannot
 represent in this test: Intel wireless discovery, WPA credential entry, and
