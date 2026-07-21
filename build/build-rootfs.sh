@@ -20,8 +20,6 @@ for module_dir in "$rootfs"/lib/modules/*; do
 done
 [ -n "$kernel_release" ] || { echo "rootfs kernel module directory is missing" >&2; exit 1; }
 mkdir -p "$rootfs/boot/EFI/alpine"
-depmod -b "$rootfs" "$kernel_release"
-PATH="$rootfs/usr/bin:$rootfs/sbin:$PATH" \
 SYSCONFDIR="$rootfs/etc/mkinitfs" DATADIR="$rootfs/usr/share/mkinitfs" \
 "$rootfs/sbin/mkinitfs" \
     -b "$rootfs" \

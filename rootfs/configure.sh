@@ -5,7 +5,7 @@ rootfs=$1
 [ -n "$rootfs" ] || { echo "rootfs path is required" >&2; exit 1; }
 
 cp /etc/apk/repositories "$rootfs/etc/apk/repositories"
-busybox --install -s "$rootfs/bin"
+/bin/busybox --install -s "$rootfs/bin"
 ln -sf /bin/busybox "$rootfs/sbin/init"
 
 home="$rootfs/home/josh"

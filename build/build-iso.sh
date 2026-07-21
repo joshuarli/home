@@ -24,6 +24,13 @@ export HOME_INSTALLER_APK_KEY="$PACKAGER_PUBKEY"
 mkdir -p /work/out /work/mkimage-work
 touch /work/.default_boot_services
 
+update_kernel=$(command -v update-kernel)
+sed -i \
+    -e 's/-comp xz/-comp zstd -Xcompression-level 3/' \
+    -e 's/ -Xbcj//' \
+    -e 's/mksfs="-Xbcj[^"]*"/mksfs=/' \
+    "$update_kernel"
+
 cd "$aports/scripts"
 sh "$aports/scripts/mkimage.sh" \
     --tag "$tag" \

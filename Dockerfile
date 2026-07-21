@@ -6,7 +6,7 @@ ARG BUILDARCH
 ARG TARGETARCH
 ENV BUILDARCH=$BUILDARCH TARGETARCH=$TARGETARCH
 
-RUN apk add --no-cache apk-tools-static binutils kmod qemu-x86_64 tar gzip
+RUN apk add --no-cache apk-tools-static binutils lddtree kmod qemu-x86_64 tar gzip
 COPY rootfs-packages.txt /work/rootfs-packages.txt
 COPY rootfs/configure.sh /work/configure-rootfs.sh
 COPY build/build-rootfs.sh /work/build-rootfs.sh
@@ -15,7 +15,7 @@ RUN chmod +x /work/configure-rootfs.sh /work/build-rootfs.sh && /work/build-root
 FROM alpine:latest AS iso-tools
 
 RUN --mount=type=cache,target=/var/cache/apk \
-    apk add abuild alpine-conf git grub mtools squashfs-tools syslinux xorriso tar gzip
+    apk add abuild alpine-conf git grub mtools squashfs-tools zstd-libs syslinux xorriso tar gzip
 
 FROM iso-tools AS aports
 
