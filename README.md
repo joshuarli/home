@@ -31,10 +31,11 @@ accepts a block device, symlink, or arbitrary existing file as the test disk.
 artifacts.
 
 The QEMU test uses a Q35 machine, a Broadwell CPU model, TCG, SATA/AHCI
-storage, virtio GPU/input, and user-mode Ethernet. Dell's XPS 13 9343
-specification identifies the platform's processor family as fifth-generation
-Intel Core and its removable storage as M.2; the QEMU choices are therefore
-an explicit Broadwell-class/SATA approximation, not an exact machine model.
+storage, virtio GPU/input, and user-mode Ethernet. Dell's [XPS 13 9343
+Owner's Manual, Specifications](https://www.dell.com/support/manuals/en-us/xps-13-9343-laptop/xps13-9343_om/specifications)
+identifies the platform's processor family as fifth-generation Intel Core and
+its removable storage as M.2; the QEMU choices are therefore an explicit
+Broadwell-class/SATA approximation, not an exact machine model.
 The exact installed CPU, memory, panel, and wireless PCI ID remain unknown
 until the laptop is inspected. The generated ISO is attached as a CD and
 booted through the pinned OVMF CODE/VARS pair; the test

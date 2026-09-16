@@ -1,486 +1,383 @@
-Implement and verify this scope change; do not stop at a proposal. Preserve
-unrelated working-tree changes. Do not push changes unless separately asked.
+Finish the current implementation through a focused correctness and
+simplification pass. Do not rewrite the project or add desktop features.
 
-DEVELOPMENT HOST: macOS arm64.
-INSTALLED TARGET: x86_64 Dell XPS 13 9343, retaining this repository's
-explicit Intel-wireless target assumption.
+Read AGENTS.md, README.md, the implementation and its
+tests. Where this request contradicts the current stock-dwl-only policy or
+the insistence on PARTUUID, this request takes precedence.
 
-MISSION
+PRODUCT GOAL
 
-Refactor this into the smallest straightforward, maintainable Alpine system
-that cold-boots into dwl with one usable foot terminal already open.
+Cold boot -> unprivileged josh session -> dwl -> exactly one usable foot.
+Ctrl+Return opens another foot.
 
-Upstream dwl's Alt+Shift+Return must open another foot terminal.
-
-The repository should become simpler, not acquire a general-purpose distro
-framework, desktop environment, or elaborate test platform.
+Keep the installed system lean, package-maintainable and understandable.
+Preserve the existing account policy, Intel hardware support, UEFI/fallback
+boot architecture, Wi-Fi provisioning and local recovery path.
 
-Build a dependable QEMU development loop on the Mac, with automated tests
-that boot the actual installer, install onto a disposable virtual disk,
-boot that installed disk through UEFI, and exercise the graphical session.
+No display manager, desktop environment, hotkey daemon, XWayland, audio
+server, persistent guest agent, SSH requirement or new distro framework.
 
-This request supersedes the old console-only MVP and its prohibition on
-building dwl from source. It does not authorize unrelated features.
+Implement the fixes and run verification. Do not stop at a proposal.
+Use small failing regression tests first. Do not push.
 
-1. ESTABLISH THE CURRENT STATE
-
-Read AGENTS.md and the actual implementation before editing. In particular:
+PRIORITY 1 — MAKE THE TESTS CAPABLE OF DETECTING FAILURE
 
-- Dockerfile and Makefile
-- rootfs-packages.txt
-- build/
-- rootfs/configure.sh and rootfs/fetch.sh
-- installer/install.sh
-- iso/
-- qemu/
-- fetch-edk2-ovmf.sh
-
-Treat executable behavior, not historical documentation, as the description
-of the current implementation.
-
-Investigate these specific areas:
-
-- The direct-kernel installer test and separate manual UEFI login path.
-- The large normalized diagnostic golden fixture.
-- Repeated or inconsistent boot command lines and root identifiers.
-- Prebuilt EFI images versus documentation describing installer-time
-  generation.
-- The manual rootfs setup necessitated by apk --no-scripts.
-- Architecture handling and the temporary qemu-x86_64 binary.
-- Installer-only, runtime, and test-only dependencies mixed together.
-- QEMU branches that bypass real installer safety or boot checks.
-- The late installer-script insertion into the ISO: preserve its useful
-  caching properties if they still justify its implementation.
-
-Record a brief implementation plan and establish a baseline where possible.
-Then proceed. Write focused failing tests before fixing testable behavior.
-Do not introduce a documentation/approval ceremony for routine decisions.
-
-2. KEEP THE PRODUCT NARROW
+The existing test results are not sufficient evidence because their
+observation mechanisms can falsely succeed.
 
-The normal boot path should be:
-
-UEFI
-  -> Alpine kernel/initramfs
-  -> BusyBox/OpenRC, device initialization and seat access
-  -> tty1 autologin as josh
-  -> small guarded session launcher
-  -> dwl
-  -> one foot terminal running the user's shell
-
-Retain:
+1. Repair qemu/harness.py's serial_command() and its callers.
 
-- Alpine's supported packaged kernel and normal package management.
-- The existing unprivileged josh account, home directory and ash shell.
-- The existing locked-root/passwordless-josh/passwordless-doas policy,
-  explicitly documented as an insecure physical-access assumption.
-- Working UTF-8, America/Los_Angeles timezone and UTC RTC.
-- The existing intended Intel Wi-Fi capability and credential persistence.
-- UEFI installation with an EFI fallback boot path.
-- An uncomplicated local recovery console.
+   It currently:
+   - sends COMMAND followed by a marker regardless of COMMAND's status;
+   - never reports COMMAND's exit status;
+   - returns the entire historical serial transcript;
+   - permits expected markers to match echoed input or earlier commands.
 
-Do not add a display manager, desktop shell, bar, launcher, notification
-daemon, browser, audio server, SSH server, network-management GUI, or
-general-purpose user-service manager.
+   Replace this with one small, reliable command transport:
+   - unique per-command framing;
+   - output limited to that invocation;
+   - an explicit captured exit status;
+   - checked success by default;
+   - an explicit opt-out for intentionally expected failures;
+   - bounded deadlines and useful failure diagnostics.
 
-Do not introduce Xorg or XWayland. Disable XWayland in the dwl build.
-
-Avoid D-Bus, elogind and polkit unless you demonstrate an actual requirement
-that cannot reasonably be met by the intended seatd-based session.
+   Separate the append-only diagnostic transcript from the command result.
+   Do not use the rolling transcript as a response object.
 
-Do not introduce a custom kernel, firmware flashing, coreboot, encryption,
-hibernation, or a second operating-system target.
+   Ensure frame recognition cannot be satisfied by terminal echo of the
+   command that prints the frame. Establish the serial shell once and
+   handle echo deliberately. Avoid repeated dependence on a hard-coded
+   "~ $ " prompt after the control channel has been established.
 
-3. MINIMIZE THE ACTUAL RUNTIME, NOT JUST THE PACKAGE LIST
+   Check failure propagation inside multi-command guest operations too.
+   Capturing only the final successful command must not conceal an earlier
+   failed apk invocation, hook, comparison, mount or deletion.
 
-Audit the complete dependency closure and installed sizes. Merely deleting
-names from /etc/apk/world does not establish that their dependencies vanished.
+2. Add host-side regression tests that establish:
+   - a guest command returning false fails a checked invocation;
+   - expected nonzero results can be inspected explicitly;
+   - echoed marker text is not accepted as command output;
+   - markers in previous commands are not accepted;
+   - missing files and empty output do not satisfy marker checks;
+   - fragmented reads, timeout and EOF cannot produce success;
+   - a command failure is not overwritten by cleanup failure.
 
-Keep explicit, understandable ownership of:
-  a. installed runtime dependencies;
-  b. live-installer dependencies;
-  c. build dependencies;
-  d. host/test dependencies.
+   Use standard-library fixtures or a small local PTY test where useful.
+   Do not introduce a large test dependency.
 
-Remove direct packages unrelated to reaching a usable dwl + foot session.
-Specifically reassess:
+3. Audit shell assertions throughout tests/ and build smoke checks.
 
-- mesa-va-gallium
-- intel-media-driver
-- libva-utils
-- alsa-lib as an explicit dependency
-- nano and less where existing BusyBox functionality is sufficient
-- wayland-protocols and other build-time-only requirements
-- unnecessary locale, utility and graphics packages
-
-Keep any genuinely required transitive libraries. An X11 protocol library
-pulled in by a packaged dependency is not the same thing as installing an
-X server; do not rebuild half the graphics stack merely to remove its name.
+   Standalone "! command" is not a fatal assertion under set -e.
+   Replace intended assertions with explicit failure handling or a small
+   assertion helper. Preserve legitimate uses of negation in conditions.
 
-Provide the minimum working graphics/input stack, including:
+   Demonstrate that the negative checks actually fail when a forbidden
+   package, unwanted service, missing required file or prohibited setting
+   is deliberately introduced.
 
-- wlroots/libseat/libinput and their required runtime dependencies;
-- correct device discovery, permissions, input classification and rules;
-- seatd and its actual OpenRC integration;
-- the appropriate Intel DRM/Mesa support for the physical target;
-- foot, its terminfo, keyboard data and one explicit monospace font.
+   Do not confuse grepping for safety-check source text with exercising
+   the safety behavior.
 
-Verify the device-manager choice. Do not assume that installing a libudev
-library or running mdev alone provides everything libinput needs. Prefer a
-small, proven Alpine eudev configuration over homemade device rules unless
-a smaller solution is demonstrated to work correctly. Avoid competing
-device-manager setups.
+4. Repair the graphical-command and recovery-console tests.
 
-Retain appropriate Intel microcode and firmware. Do not remove hardware
-drivers or firmware because the virtual machine does not use them. Do not
-pretend the existing QEMU diagnostic fixture identifies my physical laptop.
+   Require exact, fresh output from a command whose exit status succeeded.
+   Prove the graphical command ran in a /dev/pts/* terminal belonging to a
+   foot session, not the serial console or a recovery VT.
 
-Prefer Alpine packages and appropriate subpackages over custom builds.
-Alpine 3.24.1 does not package dwl, so compile the pinned upstream release
-with its stock configuration in a build-only stage. Do not add a repository-
-owned dwl package/config or turn shaving minor dependencies into a custom
-Mesa/wlroots distribution project.
+   Use a per-run challenge/result that cannot pass merely because its
+   filename appeared in an echoed serial command.
 
-If a large dependency remains, quantify it and explain the tradeoff rather
-than silently declaring the image minimal.
+   Combine that evidence with the existing graphical input and screenshot
+   observations. Verify rendered command output, not only typed input.
+   Do not add OCR or brittle whole-screen golden images.
 
-Keep build tools, development headers, temporary emulators, package caches
-and test tools out of the installed image.
+   Include negative controls: withholding graphical input or preventing the
+   intended command from executing must make the relevant test fail.
 
-4. USE THE UPSTREAM DWL CONFIGURATION
+PRIORITY 2 — FIX EFI DETECTION AND SIMPLIFY BOOT MAINTENANCE
 
-Choose and pin an upstream dwl release or immutable commit compatible with
-the wlroots ABI available in the selected stable Alpine branch. Verify this
-compatibility from the actual sources and package metadata.
+5. Correct efivarfs detection in installer/install.sh.
 
-Use the current upstream location, not an obsolete mirror by accident.
-Record source checksums and the chosen versions. Do not follow an unpinned
-master branch or mix edge packages into stable to make a build succeed.
+   findmnt -T reports the containing filesystem, not necessarily a mount at
+   the requested path. Verify the exact mountpoint and filesystem type.
 
-Build in a separate build-only stage and install only the resulting upstream
-binary into the target. Keep all runtime libraries package-managed by Alpine;
-do not globally weaken APK signature verification or vendor a dwl fork.
+   Mount efivarfs when necessary, check the mount result, and then read
+   firmware variables. Do not suppress a mount failure and misreport it as
+   a firmware capability limitation.
 
-Use the release's stock configuration: it runs ordinary foot, leaves XWayland
-disabled, and binds Alt+Shift+Return to spawning foot. Do not add a local
-config.h, patch collection, or invented runtime dwl configuration format.
+   Add tests covering:
+   - only parent sysfs mounted;
+   - efivarfs already mounted;
+   - mount failure;
+   - Secure Boot enabled;
+   - Secure Boot disabled;
+   - genuinely unavailable or malformed state.
 
-Use dwl's native startup-command mechanism to launch the initial foot
-after the compositor is ready. Start exactly one terminal per session.
-Do not add a separate autostart daemon or enable foot-server by default.
+   Reassess the QEMU "disabled" seed after this correction. Remove the
+   exception if it only worked around the mount-check bug. Any genuinely
+   necessary firmware-specific exception must be supported by observations
+   from a correctly mounted efivarfs and documented accurately.
 
-Check the selected release's startup-command stdin/status-stream behavior.
-Close or redirect unused status input as appropriate so it cannot stall
-the compositor. Do not introduce a status bar merely to consume it.
-
-Remove bindings that invoke absent applications. Keep and document a small
-usable set for focus, closing a window, exiting dwl and console recovery.
-
-The selected upstream stock v0.8 configuration includes its example `Mod+p`
-binding for `wmenu-run`. Because this image intentionally has no launcher,
-that upstream example remains dormant; do not add a local dwl config, wrapper,
-or launcher package merely to activate it.
-
-Keep foot configuration minimal: a real installed monospace font, sensible
-size, working UTF-8 and correct terminfo. Avoid themes, font collections and
-unnecessary configuration copied wholesale from examples.
+   Keep physical installation fail-closed when the required state cannot
+   be established. Do not weaken disk checks in test mode.
 
-5. MAKE LOGIN AND SESSION LIFECYCLE CORRECT
+6. Remove fragile build-time modifications from the normal boot path.
 
-Run dwl and foot as josh, never as root.
+   Audit:
+   - rootfs/patch-initramfs.sh;
+   - mutation of /usr/share/mkinitfs/initramfs-init;
+   - the extracted kernel-hooks.trigger copy;
+   - the reason for apk --no-scripts in an amd64 stage that already executes
+     amd64 chroot commands;
+   - normal package-trigger behavior after installation.
 
-Set up XDG_RUNTIME_DIR before launching dwl. Use a securely created,
-user-owned directory under /run, mode 0700, with correct lifecycle and
-ownership checks. Do not use a globally writable shared directory or an
-unsafe mkdir/chown sequence vulnerable to symlinks.
+   Prefer a root=UUID=... configuration supported by the selected Alpine
+   release if it eliminates the local PARTUUID patch and related machinery.
+   PARTUUID is not a product requirement worth maintaining a fragile patch.
 
-Ensure HOME, USER, SHELL and the session environment are correct.
-Let dwl provide the Wayland display to its children.
-
-Autostart only from the intended tty1 login. A foot shell, subshell, serial
-login, recovery-console login or another invocation of ash must not launch
-another compositor. Do not put an unconditional dwl invocation in .ashrc.
-
-Use one small launcher and straightforward login integration. Do not
-invent a session manager.
-
-Ensure device initialization and seat access are ready before the session
-starts. Verify actual socket permissions and group membership; fix the
-existing account/group setup to be idempotent without duplicate members
-or arbitrary GID collisions.
-
-A session failure or intentional exit must leave a usable recovery path,
-not a black screen or a rapid autologin/crash/respawn loop. Prefer returning
-to a working shell with a useful error and an explicit restart command.
-Provide a documented way to bypass GUI startup for recovery.
-
-Capture useful bounded diagnostics without adding a logging daemon.
-
-Closing the initial terminal must not kill dwl. With no terminals open,
-Alt+Shift+Return must still work.
-
-The desktop must start when Wi-Fi is unavailable. Network acquisition must
-not indefinitely block reaching the terminal.
-
-6. SIMPLIFY BUILD AND INSTALLATION WITHOUT HIDING FAILURES
-
-Keep Docker/Buildx as the Linux image builder and native macOS QEMU as the
-VM runner. Make the architecture model explicit.
-
-Prefer a coherent linux/amd64 build stage over duplicated pseudo-cross-build
-paths. Determine whether the manually copied qemu-x86_64 binary serves any
-real purpose; remove it if it does not.
-
-Audit apk --no-scripts carefully. Package installation scripts, triggers,
-groups, service setup, module metadata and font configuration must either
-run correctly or be deliberately replaced. A successful archive build is
-not proof of a correctly initialized rootfs.
-
-Centralize boot configuration. Choose one consistent root-identification
-scheme and make the generated EFI image, installer, update hooks, tests
-and documentation agree. Do not claim PARTUUID boot while shipping a
-LABEL-based command line.
+   Keep the EFI command line, fstab, installer, update hooks, tests and docs
+   consistent. Do not change identifiers in only one layer.
 
-Prefer the simplest tested solution; do not redesign boot merely to match
-stale documentation.
-
-Preserve the packaged-kernel/EFI-stub approach unless a concrete failure
-requires a change. Keep GRUB out of the installed system. Installer-media
-bootloader dependencies are a separate budget.
+   Use Alpine's supported package/hook interfaces rather than a permanently
+   copied private trigger implementation. Preserve any truly necessary
+   deferred setup, but make its ownership and update lifecycle explicit.
 
-Ensure both the canonical EFI image and EFI/BOOT/BOOTX64.EFI remain current
-after kernel/initramfs regeneration. A fallback image copied only during
-installation must not silently become stale after an update.
-
-Keep the filesystem layout uncomplicated. Reassess the existing 2xRAM swap
-policy and its separate QEMU-only sizing rather than preserving divergent
-code by inertia. Hibernation is not a requirement. Choose and document one
-simple policy; do not build a configurable partition-layout framework.
-
-Retain useful Intel Wi-Fi setup while separating network provisioning from
-the common disk installation steps. Virtual Ethernet must not require a
-second installer implementation. Reassess mandatory internet/DNS checks
-when all installation payloads are already embedded.
+   A normal supported package replacement or upgrade must not silently
+   remove a boot requirement. If a modification remains necessary, prove
+   that it survives package replacement; do not merely document the risk.
 
-Harden the destructive boundary:
+7. Strengthen update and fallback verification.
 
-- Physical installation retains explicit target confirmation.
-- Resolve installer partitions to their parent disk when excluding media.
-- Reject inappropriate, mounted or otherwise protected targets.
-- QEMU mode must not disable UEFI checks or generic disk-safety checks.
-- Never select a disk merely because its enumeration happened to be vdb.
-- Restore terminal echo and clean up only owned network processes.
-- Clean up mounts and temporary state on failure and interruption.
-- Replace blind sleeps with bounded readiness checks.
-- Test partition naming, size calculations and relevant sector-size cases.
+   On disposable installed-disk overlays:
+   - verify /boot is the actual mounted ESP before modifying EFI files;
+   - exercise the real package/hook path;
+   - enforce every command's exit status;
+   - establish that a new EFI payload was generated;
+   - establish that the new payload was actually booted.
 
-Host tests may write only newly created, owned regular image files inside
-the designated generated test directory. Reject block devices, unsafe
-symlinks and arbitrary existing files supplied through environment
-overrides. Never touch macOS /dev/disk* devices.
+   A harmless, unique test-only kernel-command-line token observed in
+   /proc/cmdline after reboot is one possible freshness witness.
 
-7. BUILD ONE HONEST X86_64 QEMU PROFILE FOR THE MAC
-
-The primary VM is an XPS-like platform approximation, not a Dell emulator.
+   Exercise replacement of the package supplying the initramfs logic, not
+   just repeated invocation of the already-modified installed script.
+   Test an actual kernel package update/reinstallation where supported.
 
-Use native qemu-system-x86_64 with TCG on macOS arm64. Do not try to use HVF
-for the Intel guest, run system QEMU inside Docker, or describe userspace
-translation as x86 system hardware acceleration.
+   Verify canonical and fallback paths independently. Explicitly check
+   that the path intentionally removed for each test is really absent.
 
-Start with:
-
-- a supported, versioned Q35 machine;
-- matched x86_64 OVMF CODE and VARS;
-- a Broadwell-class CPU model, subject to actual TCG support;
-- modest configurable memory/CPU allocation;
-- SATA/AHCI storage for the main platform test;
-- a virtual DRM-capable display;
-- virtual keyboard and pointer devices;
-- user-mode Ethernet networking.
+   A no-op regeneration, failed hook, stale fallback, or two matching old
+   images must fail the test.
 
-Verify the proposed CPU and storage approximation against Dell's published
-documentation. Do not invent my exact CPU SKU, memory size, panel resolution
-or wireless PCI ID. Mark unknown physical details explicitly.
+   Preserve the existing atomic fallback replacement where appropriate.
+   Keep generated EFI images and normal update hooks synchronized.
 
-Inspect the installed QEMU's supported machines, CPU features, devices and
-display backends. Do not suppress unsupported-feature warnings and call
-the result an exact Broadwell environment. Avoid build flags that allow
-newer instructions than the target should have.
+PRIORITY 3 — MAKE INTERACTIVE AND AUTOMATED QEMU MATCH
 
-Use a 2D virtio display and a verified software-rendering route as the
-portable Mac baseline. Prefer the selected wlroots version's pixman
-renderer if it works correctly with DRM/KMS. Verify rather than assume.
+8. Use one common installed-VM graphics configuration.
 
-Confine VM-specific renderer selection to explicit test/VM configuration.
-Do not force software rendering on the physical Intel machine just to make
-tests pass. Avoid requiring virgl, Vulkan passthrough or special host GPU
-infrastructure for the baseline.
+   Currently installed_session_stage() enables qemu_renderer, while
+   interactive_run() does not. Remove that divergence.
 
-The automated VM may have no host display window, but it must still expose
-a guest DRM device and exercise the normal VT/input/compositor path.
-WLR_BACKENDS=headless is not an acceptable substitute for this E2E test.
+   Except for display visibility, control transport and narrowly scoped
+   test inputs, make run and installed-system acceptance must use the same:
+   - virtual GPU;
+   - renderer selection;
+   - DRM-device selection;
+   - input devices;
+   - CPU/machine/firmware configuration.
 
-Provide an interactive graphical mode using an available native display
-backend, or a documented localhost-only alternative. Keep QMP and serial
-control separate from the graphical display.
+   Define defaults once and test the generated commands for parity.
 
-Reuse and improve the firmware-fetching helper where appropriate. Verify
-checksums, keep CODE read-only, and give each run its own writable VARS.
-Do not independently auto-select incompatible CODE/VARS files.
+9. Make the virtual GPU explicit.
 
-Use explicit opt-in for unattended testing, such as a narrowly scoped
-fw_cfg test seed or automation of the real installer interface. Do not
-trigger destructive installation simply from a QEMU/Dell DMI string.
+   The current configuration adds virtio-gpu but relies on the implicit
+   default Bochs device and hard-codes /dev/dri/card0.
 
-Require an explicitly identified disposable virtual target. Keep ordinary
-physical-image behavior interactive.
+   Choose the simplest proven single-GPU software-rendering configuration.
+   Explicit Bochs is acceptable if it is the reliable Mac baseline.
+   Virtio is acceptable if the complete selected rendering path works.
 
-Document that virtual Ethernet does not test Wi-Fi, virtio graphics does
-not test i915, and virtual input does not reproduce the Dell's touchpad.
+   Do not retain two GPUs accidentally. Do not select a driver merely by
+   assuming a card number. Disable unwanted default devices or resolve the
+   intended device through stable identity.
 
-8. REPLACE THE GOLDEN TRANSCRIPT WITH REAL ACCEPTANCE TESTS
+   Assert which DRM driver/device the compositor actually uses, not merely
+   that /dev/dri/card0 exists. Ensure screenshots observe that same output.
 
-Use focused shell tests for pure configuration/installer behavior and a
-small host harness for VM orchestration. Python standard library is fine
-for QMP, serial control, timeouts and assertions. Do not install Python,
-SSH or a persistent guest agent in the target solely for testing.
+   Update doctor, profile metadata and documentation to describe reality.
 
-The authoritative E2E sequence must:
+   Keep software-renderer overrides confined to the VM. The physical Intel
+   machine must retain its intended native renderer selection.
 
-A. Boot the actual generated installer image through OVMF.
-   Prefer the USB-media presentation used for physical installation if the
-   image supports it. State which media path was tested.
-   Do not use QEMU -kernel/-initrd to bypass firmware in this test.
+10. Verify the actual development entrypoints.
 
-B. Install onto a fresh disposable virtual disk using the real installer.
-   Exercise UEFI detection, partitioning, filesystems, extraction, target
-   configuration and EFI installation. Only hardware-specific network
-   provisioning and explicit test input may differ.
+   Test doctor against output from the installed QEMU, including CPU-list
+   formatting and supported display backends. A substring in "-device help"
+   is not a substitute for a successful supported VM launch.
 
-C. Wait for successful completion and clean shutdown. Do not declare
-   success and kill QEMU as soon as a log contains "Installation complete."
+   Record relevant QEMU version and CPU-feature limitations. Do not suppress
+   unsupported-feature warnings and claim exact Dell emulation.
 
-D. Boot the installed disk with the installer detached, through firmware,
-   without direct-kernel boot or a replacement test initramfs.
+   Run the interactive command and inspect its visible desktop, not only the
+   headless acceptance path.
 
-E. Verify the normal tty1 autologin/session path:
-   josh owns the compositor, seat access works, a Wayland socket exists,
-   the DRM/input backend is active, and exactly one foot window is mapped.
+   Exercise the installer image as USB storage through UEFI, matching the
+   intended physical installation route. The existing CD boot test alone
+   does not validate the USB route. Reuse the same installer and core profile;
+   do not create a family of separate installer implementations.
 
-F. Capture and inspect a screenshot showing the terminal and rendered text.
-   Process existence alone is insufficient.
+   Maintain explicit identification of the disposable writable target when
+   changing media presentation. Do not depend on disk enumeration order.
 
-G. Inject an actual Alt+Shift+Return chord through QEMU's input interface.
-   Verify exactly one additional usable foot terminal appears.
-   Do not test this by manually spawning foot from serial or only grepping
-   the compiled configuration.
+11. Improve offline and recovery coverage without expanding the product.
 
-H. Type a shell command through the graphical terminal that produces a
-   unique per-run result. Observe the result independently through the
-   test transport and inspect graphical output.
-   Establish that the command ran in a terminal PTY, not the serial shell.
-   Avoid false passes from echoed test commands or static marker strings.
+   In addition to a missing NIC, test a present NIC with unavailable
+   connectivity/DHCP. Reaching the desktop must remain bounded.
 
-I. Verify ordinary Return does not create another terminal. Close terminals,
-   including the original one, and verify Alt+Shift+Return still opens a new
-   one.
+   Verify tty2 recovery, returning to tty1, intentional dwl exit, compositor
+   failure and explicit session restart. Require fresh observations and
+   exactly the expected compositor/client counts.
 
-J. Verify a serial/recovery login does not start an extra compositor.
-   Exercise compositor exit/failure and recovery without a respawn storm.
-   A new explicit desktop session should autostart one foot, not duplicates.
+   Recovery must not depend on the compositor still being healthy.
+   Document an actionable way to restart the desktop from its tty1 recovery
+   shell and the real boot-time recovery bypass.
 
-K. Reboot and verify the behavior again, including a boot without usable
-   networking.
+PRIORITY 4 — HARDEN THE DESTRUCTIVE BOUNDARIES
 
-L. Boot with a fresh firmware variable store to prove the EFI fallback path
-   works independently of the install-created NVRAM entry.
+12. Correct disk geometry at its source.
 
-M. Exercise kernel/initramfs/EFI regeneration on a disposable installed-disk
-   copy and verify the canonical and fallback paths still boot the updated
-   result. Use the real update hooks, not a manual test-only copy operation.
+   blockdev --getsz always reports 512-byte units; the installer currently
+   treats that count as logical sectors.
 
-Keep test observations in the installed system where that is what is being
-claimed. A diagnostic script executed in the live ISO cannot prove the
-installed desktop works.
+   Prefer deriving logical-sector count from --getsize64 / --getss with
+   explicit divisibility and range validation.
 
-Use screenshots, process/session facts and behavioral assertions together.
-Do not replace the old huge text fixture with a fragile whole-screen pixel
-golden or an OCR framework.
+   Test the real caller as well as the pure layout function for 512-byte and
+   4096-byte logical sectors. Verify all byte sizes, alignment, non-overlap,
+   GPT limits and the final partition end against actual disk capacity.
 
-Retain useful diagnostics as on-demand/failure artifacts. Remove the
-172KB-style normalized fetch transcript as the main correctness contract.
+   Either support a geometry correctly or reject it before any destructive
+   operation. Do not silently compute an impossible layout.
 
-Use explicit deadlines, bounded polling, reliable process cleanup and
-separate stage results. Preserve QEMU stderr, serial logs, screenshots,
-invocation/configuration and relevant guest logs on failure.
+   Validate the complete layout before wipefs. Add a regression test proving
+   that invalid geometry or an undersized target invokes no destructive tool.
 
-A timeout, missing observation or unavailable required test is not a pass.
+13. Replace safety-text tests with focused behavioral tests.
 
-9. MAKE ITERATION FAST WITHOUT ADDING A SECOND PRODUCT
+   Exercise installer-media parent-disk exclusion, mounted descendants,
+   active swap, read-only targets, unsupported device types and missing
+   confirmation. Fail closed when required inspection cannot be completed.
 
-Keep a small public command surface, approximately:
+   Keep unsupported storage arrangements out of scope rather than adding
+   LVM/RAID support to make a test convenient.
 
-    make doctor   # validate host prerequisites and capabilities
-    make build    # build the installer and useful build metadata
-    make check    # focused static/unit/rootfs checks
-    make test     # authoritative install -> firmware boot -> GUI tests
-    make run      # interact with the retained installed VM
+   Audit cleanup flags around bind mounts: record ownership immediately
+   after a successful mount, so a subsequent propagation-setting failure
+   cannot leave an untracked mount.
 
-Existing names may be retained as cheap aliases when useful. Document
-destructive reset/clean behavior.
+   Required cleanup failures must be reported. Keep terminal restoration,
+   process ownership and mount cleanup correct under interruption.
 
-Share VM configuration between test and interactive operation. Avoid
-separate large launcher scripts that drift.
+14. Make host-side safety self-contained.
 
-Exploit Docker cache boundaries so editing the installer or upstream dwl build
-does not unnecessarily rebuild unrelated layers.
+   Validate generated-path ancestors from the trusted repository root,
+   including dist itself. The Python harness must not depend on the firmware
+   fetch script having rejected a symlink earlier.
 
-A retained installed disk or qcow2 overlay may support faster session
-iteration. Clearly distinguish that shortcut from a fresh-install test.
-Associate cached state with the relevant build/source fingerprints and
-invalidate it when necessary. Never silently test a stale image.
+   Test direct harness invocation with symlinked dist, nested symlinks,
+   non-regular outputs and paths outside the generated directory.
 
-Do not add an ARM guest as another supported product or a large VM/profile
-framework. The x86_64 path is the acceptance target.
+   Do not delete arbitrary files or follow aliases outside the designated
+   generated tree. Preserve the explicit disposable-disk restriction.
 
-10. MEASURE, DOCUMENT AND FINISH
+   Ensure partial VM startup failures close sockets, file handles and the
+   QEMU process. installed_session_stage() must not leak a VM if connection
+   setup fails before its caller enters a try/finally block.
 
-Report before/after, where a valid baseline can be obtained:
+   Reject unexpected QEMU exit statuses at every stage.
 
-- direct packages and resolved package count;
-- installed filesystem size and largest dependency contributors;
-- rootfs payload, EFI image and installer ISO sizes separately;
-- enabled services and steady-state processes;
-- idle memory with the measurement method stated;
-- boot-to-usable-terminal timing under the documented QEMU configuration.
+   Invalidate prior success reports at the start of a new test attempt.
+   Publish a fresh success verdict only after every required stage succeeds.
+   Do not leave old "passed" metadata looking like the current run's result.
 
-Distinguish allocated disk capacity from used filesystem space, compressed
-artifacts from installed size, and TCG timing from laptop performance.
+PRIORITY 5 — COMPLETE THE REQUEST WITHOUT ADDING MACHINERY
 
-Keep the runtime package manifest authoritative and record resolved build
-versions. Pin important source/firmware inputs. Do not claim full
-bit-for-bit reproducibility merely because the base image has a version tag.
+15. Implement Ctrl+Return.
 
-Rewrite AGENTS.md into concise, current engineering invariants. Put human
-build/run/recovery instructions in a concise README without duplicating a
-large historical specification.
+   Keep the pinned upstream dwl build, but make the smallest auditable
+   build-time configuration change needed to bind Ctrl+Return to ordinary
+   foot. No hotkey daemon, wrapper-based key interception or patch collection.
 
-Explain the boot/session chain, remaining dependencies, keybindings,
-firmware/root-identifier choice, installer safety boundary, VM test stages
-and cache invalidation.
+   Remove the dormant binding to the uninstalled wmenu-run instead of
+   documenting a broken binding as an intentional feature.
 
-Include a short validation matrix separating:
-- proven in QEMU;
-- checked statically for the target;
-- still requiring physical-hardware validation.
+   Keep the remaining useful upstream behavior unless a requirement demands
+   otherwise. Maintain explicit XWayland-disabled verification.
 
-The latter should include actual Intel graphics, Wi-Fi/firmware, touchpad,
-panel behavior and power management. The development loop must not require
-the laptop, but do not misrepresent VM success as hardware certification.
+   Update the real injected-key acceptance test, README and AGENTS.md.
+   Do not redefine the requirement to match the stock configuration.
 
-Finish with the implemented changes, exact verification commands/results,
-size tradeoffs and any remaining blockers. Distinguish tests actually run
-from tests merely written. Do not claim success from static checks alone.
+   Verify:
+   - one foot after cold boot;
+   - Ctrl+Return creates exactly one additional usable terminal;
+   - ordinary Return does not;
+   - closing every terminal leaves dwl alive;
+   - Ctrl+Return works again with no terminals open.
 
-Make the result smaller and easier to understand. Do not replace the old
-complexity with a new abstraction layer.
+16. Do a measured simplification pass after correctness.
+
+   Remove obsolete workaround code, redundant configuration, stale planning
+   transcripts and tests that only freeze an implementation detail.
+
+   Prefer deleting unnecessary mechanisms over moving them into abstractions.
+   Do not split the harness into a framework merely to shorten one file.
+
+   Audit the remaining --no-scripts side effects, including boot/shutdown
+   services, device initialization, fonts and package triggers. Prefer
+   supported Alpine behavior to duplicated package internals where practical.
+
+   Keep runtime, installer, builder and host-test dependencies separate.
+   Do not add a target daemon or development tool for testing convenience.
+
+   Record the actual installed closure and major size contributors. Include
+   the manually installed dwl binary in software/version accounting even
+   though APK does not own it.
+
+   Describe installed fonts and graphics/firmware packages accurately.
+   Do not claim a single font file or hardware-specific minimal closure merely
+   because one font is configured or one package name appears in world.
+
+   Do not rebuild Mesa, wlroots or the kernel just to win a marginal size
+   reduction. Quantify meaningful remaining tradeoffs.
+
+FINAL ACCEPTANCE
+
+Run on the macOS arm64 development environment:
+
+    make check
+    make doctor
+    make build
+    make test
+    make run
+
+Adapt command names only where the existing interface genuinely improves.
+
+Required evidence:
+- focused regressions fail before the relevant fixes and pass afterward;
+- deliberately broken command results cannot produce a passing verdict;
+- firmware installation and installed-system boot use the real media;
+- graphical input, executed PTY commands and visible output agree;
+- interactive and automated graphics configurations agree;
+- recovery and offline startup work;
+- canonical and fallback EFI boot consume newly generated payloads;
+- package replacement does not discard a required boot modification;
+- unsafe or impossible installation targets are rejected before writes;
+- no test requires the physical laptop.
+
+Finish with the exact revision, commands/results, observed remaining
+limitations and measured size changes. Distinguish executed tests from
+tests merely written. Do not claim physical i915/Wi-Fi/touchpad validation
+from virtual hardware.
+
+The goal is a smaller implementation whose tests can be trusted—not more
+features, more documentation volume or more ways to declare success.
