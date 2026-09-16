@@ -58,6 +58,11 @@ contains "$repo/qemu/harness.py" source_sha256
 contains "$repo/installer/install.sh" INSTALLER_TEST_MODE
 contains "$repo/installer/install.sh" active_swap_disk
 contains "$repo/README.md" 'make test'
+contains "$repo/README.md" 'make size'
+contains "$repo/Makefile" 'size: build'
+contains "$repo/Makefile" 'build/size-report.py'
+contains "$repo/build/size-report.py" 'iso-members.tsv'
+contains "$repo/build/size-report.py" 'rootfs-members.tsv'
 contains "$repo/qemu/harness.py" 'doas stat -c %s /boot/EFI/alpine/linux-lts.efi'
 
 if rg -q 'WLR_BACKENDS=headless' "$repo" \

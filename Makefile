@@ -1,4 +1,4 @@
-.PHONY: build doctor check check-host-tools test run login fetch-edk2-ovmf clean
+.PHONY: build size doctor check check-host-tools test run login fetch-edk2-ovmf clean
 
 QEMU_TEST_DIR ?= dist/qemu
 QEMU_DISK ?= $(QEMU_TEST_DIR)/disk.img
@@ -8,6 +8,9 @@ OVMF_VARS ?=
 build:
 	mkdir -p dist
 	docker buildx build --platform linux/amd64 --progress=plain --output type=local,dest=dist .
+
+size: build
+	python3 build/size-report.py --dist dist
 
 fetch-edk2-ovmf:
 	./fetch-edk2-ovmf.sh
@@ -36,7 +39,8 @@ check:
 	python3 tests/test-qemu-paths.py
 	python3 tests/test-qemu-harness.py
 	python3 tests/test-qemu-graphics.py
-	python3 -m py_compile qemu/harness.py
+	python3 tests/test-size-report.py
+	python3 -m py_compile build/size-report.py qemu/harness.py
 
 check-host-tools: doctor
 

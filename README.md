@@ -20,9 +20,29 @@ not treated as HVF-accelerated on an arm64 Mac.
 make doctor                 # host QEMU/Docker capability checks
 make check                  # shell, layout, safety and static contract tests
 make build                  # writes dist/home-installer.iso and metadata
+make size                   # builds if needed, then writes a complete size report
 make test                   # fresh ISO install, UEFI boot and GUI acceptance
 make run                    # graphical boot of the retained installed disk
 ```
+
+`make size` is a post-build measurement, not a second image build. It uses
+the host's `bsdtar` (included with macOS) to enumerate every ISO member,
+streams the nested prepared rootfs archive, and writes:
+
+- `dist/size-report.txt`, a readable breakdown of ISO categories, the live
+  kernel/modloop, APK repository, embedded rootfs, firmware/kernel-module
+  classes, largest files and largest packages;
+- `dist/size-report/iso-members.tsv`, every ISO member with logical and
+  2048-byte-sector allocation sizes;
+- `dist/size-report/rootfs-members.tsv`, every embedded target-root member;
+- `dist/size-report/packages.tsv`, the complete resolved APK package table.
+
+The report deliberately distinguishes compressed archive bytes, ISO member
+bytes, and installed filesystem allocation. On the current build, the largest
+ISO components are the prepared rootfs overlay, the live kernel modloop, and
+the live APK repository; Intel firmware is significant but is not the sole
+source of the image size. Linux hosts need a `bsdtar`/libarchive installation
+to run `make size`.
 
 `make test` recreates only `dist/qemu/disk.img` and other generated files
 under `dist/qemu/`. It is destructive to that disposable VM state. It never
@@ -171,6 +191,9 @@ metadata records the Alpine release, aports revision, compressed rootfs
 archive size, ISO size, and ISO SHA-256. These are build facts, not a
 reproducibility claim and not a measure of the installed disk footprint. The
 partitioned QEMU disk capacity is also distinct from used filesystem space.
+For a complete post-build attribution, run `make size`; its member-level TSVs
+make the compressed live-media payloads and the prepared target payload
+auditable without confusing them with one another.
 
 The acceptance harness retains serial/QEMU logs, invocation data, screenshots,
 firmware variables, per-run metadata, and other stage artifacts under

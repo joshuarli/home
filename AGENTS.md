@@ -135,6 +135,7 @@ Run focused checks first:
 make check
 make doctor
 make build
+make size
 make test
 ```
 
