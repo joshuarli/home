@@ -3,7 +3,9 @@ FROM alpine:3.24.1 AS upstream-dwl-build
 # Alpine 3.24.1 does not ship a dwl package.  Build the pinned upstream
 # release with its stock configuration in a build-only stage; the compiler,
 # headers and source archive never enter the target rootfs.  The upstream
-# default keeps XWayland disabled and uses Alt+Shift+Return for a second foot.
+# default keeps XWayland disabled; the two small build-time substitutions
+# below make the requested Ctrl+Return terminal binding and remove the
+# stock example binding to the intentionally absent wmenu-run.
 RUN printf '%s\n' 'https://dl-cdn.alpinelinux.org/alpine/v3.24/community' >> /etc/apk/repositories && \
     apk add --no-cache alpine-sdk build-base libinput-dev pkgconf wayland-dev \
         wayland-protocols libxkbcommon-dev wlroots0.19-dev wget
@@ -16,6 +18,15 @@ RUN set -eux; \
         /work/dwl-0.8.tar.gz | sha256sum -c -; \
     tar -xzf /work/dwl-0.8.tar.gz -C /work/src; \
     cd /work/src/dwl; \
+    sed -i \
+        -e '/static const char \*menucmd\[\] = { "wmenu-run", NULL };/d' \
+        -e '/{ MODKEY,                    XKB_KEY_p,           spawn,            {.v = menucmd} },/d' \
+        -e 's/{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Return,      spawn,            {.v = termcmd} },/{ WLR_MODIFIER_CTRL,          XKB_KEY_Return,      spawn,            {.v = termcmd} },/' \
+        config.def.h; \
+    if grep -Fq 'wmenu-run' config.def.h || ! grep -Fq '{ WLR_MODIFIER_CTRL,          XKB_KEY_Return,      spawn,            {.v = termcmd} },' config.def.h; then \
+        echo 'upstream dwl configuration substitutions were not applied' >&2; \
+        exit 1; \
+    fi; \
     make; \
     install -m 0755 dwl /work/dwl
 
@@ -27,13 +38,14 @@ COPY --from=upstream-dwl-build /work/dwl /work/dwl
 COPY rootfs-packages.txt /work/rootfs-packages.txt
 COPY rootfs/fetch.sh /work/fetch.sh
 COPY rootfs/configure.sh /work/configure-rootfs.sh
-COPY rootfs/patch-initramfs.sh /work/patch-initramfs.sh
 COPY rootfs/home-login /work/home-login
 COPY rootfs/home-session /work/home-session
 COPY rootfs/home-runtime.initd /work/home-runtime.initd
 COPY rootfs/foot.ini /work/foot.ini
 COPY build/build-rootfs.sh /work/build-rootfs.sh
-RUN chmod +x /work/configure-rootfs.sh /work/patch-initramfs.sh /work/build-rootfs.sh \
+COPY build/rootfs-smoke-assertions.sh /work/rootfs-smoke-assertions.sh
+RUN chmod +x /work/configure-rootfs.sh /work/build-rootfs.sh \
+        /work/rootfs-smoke-assertions.sh \
         /work/home-login /work/home-session /work/home-runtime.initd && \
     /work/build-rootfs.sh
 

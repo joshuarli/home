@@ -3,8 +3,8 @@
 This repository builds a deliberately narrow Alpine Linux image for the
 Intel-only Dell XPS 13 9343 target. The installed system boots an Alpine
 kernel-generated unsigned EFI image directly into `dwl`, with one `foot`
-terminal already open. Upstream dwl's `Alt+Shift+Return` opens another
-terminal.
+terminal already open. The pinned upstream dwl build uses `Ctrl+Return` to
+open another terminal.
 
 The image keeps the existing MVP account policy: `josh` is passwordless,
 root is locked, and `josh` may use passwordless `doas`. That is an intentional
@@ -31,14 +31,15 @@ accepts a block device, symlink, or arbitrary existing file as the test disk.
 artifacts.
 
 The QEMU test uses a Q35 machine, a Broadwell CPU model, TCG, SATA/AHCI
-storage, virtio GPU/input, and user-mode Ethernet. Dell's [XPS 13 9343
+storage, one explicit std VGA/bochs DRM GPU with pixman, virtio input, and
+user-mode Ethernet. Dell's [XPS 13 9343
 Owner's Manual, Specifications](https://www.dell.com/support/manuals/en-us/xps-13-9343-laptop/xps13-9343_om/specifications)
 identifies the platform's processor family as fifth-generation Intel Core and
 its removable storage as M.2; the QEMU choices are therefore an explicit
 Broadwell-class/SATA approximation, not an exact machine model.
 The exact installed CPU, memory, panel, and wireless PCI ID remain unknown
-until the laptop is inspected. The generated ISO is attached as a CD and
-booted through the pinned OVMF CODE/VARS pair; the test
+until the laptop is inspected. The generated ISO is presented as USB storage
+and booted through the pinned OVMF CODE/VARS pair; the test
 does not use `-kernel` or `-initrd`. An explicit fw_cfg seed supplies the
 disposable `/dev/sda` target and test network interface to the real installer
 service. No DMI string triggers installation.
@@ -64,11 +65,19 @@ UEFI -> EFI/BOOT/BOOTX64.EFI or EFI/alpine/linux-lts.efi
      -> tty1 autologin as josh -> home-session -> dwl -> foot + ash
 ```
 
-The root filesystem is identified by GPT `PARTUUID`. Kernel hooks generate
+The root filesystem is identified by filesystem `UUID`. Kernel hooks generate
 `/boot/EFI/alpine/linux-lts.efi`; the executable fallback copy at
 `/boot/EFI/BOOT/BOOTX64.EFI` is refreshed by the kernel-hook directory after
 future kernel regeneration. Secure Boot is intentionally unsupported because
 the image is unsigned.
+
+The prepared rootfs deliberately contains no generated EFI image. Its
+package-owned secureboot hook is configured before installation, but its first
+generation is deferred until the installer has substituted the target root UUID
+and mounted the ESP at `/boot`. `secureboot-hook` builds the embedded initramfs;
+the documented `disable_trigger=yes` setting suppresses the redundant generic
+`mkinitfs` output. Alpine 3.24.1 resolves `root=UUID=...` without a local
+initramfs patch.
 
 `home-login` starts the compositor only for the tty1 autologin. Serial and
 recovery VTs remain ordinary ash shells. `home-runtime` creates
@@ -82,13 +91,13 @@ login shell; this is the documented bypass for GUI startup. It prevents an
 ordinary ash invocation from starting another compositor. `Alt+Shift+q`
 intentionally exits `dwl` and returns to the recovery shell.
 
-Useful bindings are `Alt+Shift+Return` for `foot`, `Alt+j/k` for focus,
+Useful bindings are `Ctrl+Return` for another `foot`, `Alt+j/k` for focus,
 `Alt+Shift+c` to close a client, `Alt+Shift+q` to exit dwl, and
-`Ctrl+Alt+F2` for a recovery VT. The upstream stock v0.8 configuration also
-contains its example `Mod+p` binding for `wmenu-run`; `wmenu` is intentionally
-not installed because this image has no launcher. That example is therefore
-dormant, and no local dwl config or wrapper is added to change upstream
-behavior.
+`Ctrl+Alt+F2` for a recovery VT. The pinned v0.8 source receives only two
+build-time configuration edits: the terminal binding changes to `Ctrl+Return`,
+and the example `wmenu-run` binding is removed because `wmenu` is not installed.
+There is no repository-owned dwl package, local runtime configuration, wrapper,
+or key-interception daemon.
 
 ## Runtime boundaries
 
@@ -148,7 +157,7 @@ removes this retained state.
 | Static/host checks | shell syntax, partition naming and sector-size layout, generated-file safety, package/boot/session contracts, QEMU capability inspection |
 | Physical hardware still required | Intel i915/Mesa behavior, Intel Wi-Fi firmware and reconnection, Dell touchpad/libinput behavior, panel modes/backlight, suspend/resume, audio codec, thermal and power management |
 
-QEMU Ethernet does not test Wi-Fi, virtio graphics does not certify i915,
+QEMU Ethernet does not test Wi-Fi, std VGA/pixman does not certify i915,
 and virtual input does not reproduce the Dell touchpad. The VM screenshots
 and process facts are acceptance evidence for the development loop, not a
 claim that the laptop hardware has already been certified.

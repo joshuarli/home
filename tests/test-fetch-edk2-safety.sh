@@ -10,6 +10,9 @@ grep -q 'refusing symlink directory' "$script"
 grep -q 'refusing symlink installation directory' "$script"
 grep -q 'refusing non-directory installation target' "$script"
 grep -q 'rm -rf -- "\$install_dir"' "$script"
-! grep -q 'rm -rf -- "\$firmware_dir"' "$script"
+if grep -q 'rm -rf -- "\$firmware_dir"' "$script"; then
+	echo 'EDK2 OVMF safety test: broad firmware-directory deletion is present' >&2
+	exit 1
+fi
 
 echo 'EDK2 OVMF path-safety tests passed'

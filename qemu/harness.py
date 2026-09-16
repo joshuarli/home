@@ -2,7 +2,7 @@
 """Small host-side QEMU harness for the x86_64 installer loop.
 
 The harness deliberately owns only files below QEMU_TEST_DIR.  It uses the
-same Q35/OVMF/SATA/virtio profile for unattended tests and for `make run`; the
+same Q35/OVMF/SATA/std-VGA profile for unattended tests and for `make run`; the
 test-specific fw_cfg values are the only automation input supplied to the
 live installer.
 """
@@ -24,24 +24,26 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, NoReturn, Optional
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TEST_DIR = ROOT / "dist" / "qemu"
 QEMU_MACHINE = "pc-q35-9.2"
+QEMU_GPU = "std"
+QEMU_RENDERER = "pixman"
 FINGERPRINT_FILENAME = "disk.fingerprint.json"
 FINGERPRINT_VERSION = 1
 FINGERPRINT_INPUTS = (
     "Dockerfile",
     "rootfs-packages.txt",
     "build/build-rootfs.sh",
+    "build/rootfs-smoke-assertions.sh",
     "build/build-iso.sh",
     "installer/install.sh",
     "iso/mkimg.home_installer.sh",
     "iso/genapkovl-home-installer.sh",
     "rootfs/configure.sh",
-    "rootfs/patch-initramfs.sh",
     "rootfs/fetch.sh",
     "rootfs/home-login",
     "rootfs/home-session",
@@ -72,7 +74,7 @@ def sha256_json(value: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def fail(message: str) -> "NoReturn":
+def fail(message: str) -> NoReturn:
     raise HarnessError(message)
 
 
@@ -104,35 +106,65 @@ def path_is_within(path: Path, parent: Path) -> bool:
     return True
 
 
+def lstat_if_exists(path: Path) -> Optional[os.stat_result]:
+    """Return lstat data without following a possibly hostile final link."""
+
+    try:
+        return path.lstat()
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        fail(f"could not inspect generated path {path}: {error}")
+
+
 def reject_symlink_components(path: Path, stop: Path) -> None:
     """Reject symlinks in a generated path, including its parent components."""
 
-    current = stop
+    path = absolute_path(path)
+    stop = absolute_path(stop)
     try:
         relative = path.relative_to(stop)
     except ValueError:
         fail(f"generated path is outside its designated directory: {path}")
+    current = stop
+    info = lstat_if_exists(current)
+    if info is not None:
+        if stat.S_ISLNK(info.st_mode):
+            fail(f"refusing symlink in generated path: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            fail(f"generated path ancestor is not a directory: {current}")
     for component in relative.parts:
         current = current / component
-        if current.is_symlink():
+        info = lstat_if_exists(current)
+        if info is None:
+            continue
+        if stat.S_ISLNK(info.st_mode):
             fail(f"refusing symlink in generated path: {current}")
+        if current != path and not stat.S_ISDIR(info.st_mode):
+            fail(f"generated path ancestor is not a directory: {current}")
+
+
+def validate_generated_path(path: Path, directory: Path, description: str) -> tuple[Path, Path]:
+    """Validate lexical containment before a generated path is touched."""
+
+    directory = absolute_path(directory)
+    path = absolute_path(path)
+    if not path_is_within(path, directory) or path == directory:
+        fail(f"generated {description} must be inside {directory}: {path}")
+    reject_symlink_components(path, directory)
+    resolved = path.resolve(strict=False)
+    if not path_is_within(resolved, directory.resolve(strict=False)):
+        fail(f"generated path resolves outside its designated directory: {path}")
+    return path, directory
 
 
 def validate_generated_file(path: Path, directory: Path, *, replace: bool) -> None:
     """Validate a host output before the harness creates or replaces it."""
 
-    directory = absolute_path(directory)
-    path = absolute_path(path)
-    if not path_is_within(path, directory) or path == directory:
-        fail(f"generated file must be inside {directory}: {path}")
-    reject_symlink_components(path, directory)
-    resolved = path.resolve(strict=False)
-    if not path_is_within(resolved, directory.resolve(strict=False)):
-        fail(f"generated path resolves outside its designated directory: {path}")
-
-    if not path.exists():
+    path, _ = validate_generated_path(path, directory, "file")
+    info = lstat_if_exists(path)
+    if info is None:
         return
-    info = path.lstat()
     if stat.S_ISLNK(info.st_mode):
         fail(f"refusing symlink output: {path}")
     if not stat.S_ISREG(info.st_mode):
@@ -146,25 +178,39 @@ def validate_generated_file(path: Path, directory: Path, *, replace: bool) -> No
 def prepare_generated_file(path: Path, directory: Path) -> Path:
     """Remove one previously-owned regular output and return its path."""
 
+    path, directory = validate_generated_path(path, directory, "file")
     directory.mkdir(parents=True, exist_ok=True)
     validate_generated_file(path, directory, replace=True)
-    if path.exists():
+    if lstat_if_exists(path) is not None:
         path.unlink()
+    return path
+
+
+def require_generated_regular_file(path: Path, directory: Path, description: str) -> Path:
+    """Require an existing regular, user-owned writable QEMU input."""
+
+    path, directory = validate_generated_path(path, directory, description)
+    validate_generated_file(path, directory, replace=True)
+    info = lstat_if_exists(path)
+    if info is None:
+        fail(f"required generated {description} does not exist: {path}")
+    # Unlinking a previous generated output is safe for a hard link, but
+    # passing one to QEMU is not: QEMU would write the external inode through
+    # the generated name. A writable VM input must have one link of its own.
+    if info.st_nlink != 1:
+        fail(f"refusing hard-linked generated {description}: {path}")
     return path
 
 
 def prepare_generated_socket(path: Path, directory: Path) -> Path:
     """Replace one stale socket created by an earlier harness process."""
 
+    path, directory = validate_generated_path(path, directory, "socket")
     directory.mkdir(parents=True, exist_ok=True)
-    directory = absolute_path(directory)
-    path = absolute_path(path)
-    if not path_is_within(path, directory) or path == directory:
-        fail(f"generated socket must be inside {directory}: {path}")
-    reject_symlink_components(path, directory)
-    if not path.exists():
+    path, _ = validate_generated_path(path, directory, "socket")
+    info = lstat_if_exists(path)
+    if info is None:
         return path
-    info = path.lstat()
     if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
         fail(f"refusing existing non-owned QEMU control endpoint: {path}")
     path.unlink()
@@ -230,9 +276,9 @@ def qemu_profile() -> dict[str, object]:
         "memory_mb": env_int("QEMU_MEMORY_MB", 1024),
         "smp": env_int("QEMU_SMP", 4),
         "storage": "ICH9 AHCI SATA",
-        "gpu": "virtio-gpu-pci",
+        "gpu": "std VGA (bochs-drm)",
         "input": ["virtio-keyboard-pci", "virtio-mouse-pci"],
-        "automated_renderer": "pixman via fw_cfg opt/home-renderer",
+        "renderer": "pixman via fw_cfg opt/home-renderer",
         "network": "virtio-net-pci user-mode networking",
     }
 
@@ -306,39 +352,61 @@ def firmware_pair() -> FirmwarePair:
     fail("no compatible OVMF CODE/VARS pair found; run make fetch-edk2-ovmf or set both OVMF_CODE and OVMF_VARS")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Paths:
     test_dir: Path
     disk: Path
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "test_dir", absolute_path(self.test_dir))
+        object.__setattr__(self, "disk", absolute_path(self.disk))
+        self.validate()
+
+    def validate(self) -> None:
+        """Recheck the complete generated-tree boundary before each write."""
+
+        generated_root = absolute_path(DEFAULT_TEST_DIR)
+        repository_root = absolute_path(ROOT)
+        if self.test_dir == Path("/") or self.test_dir == Path("/dev") or self.test_dir == repository_root:
+            fail(f"unsafe QEMU test directory: {self.test_dir}")
+        if not path_is_within(self.test_dir, generated_root):
+            fail(f"QEMU_TEST_DIR must be inside the repository generated directory: {generated_root}")
+        # Check from the trusted repository root, rather than only from
+        # dist/qemu.  Otherwise a direct harness invocation can follow a
+        # symlinked dist/ directory before the firmware-fetch script gets a
+        # chance to reject it.
+        reject_symlink_components(self.test_dir, repository_root)
+        resolved_test_dir = self.test_dir.resolve(strict=False)
+        resolved_repository_root = repository_root.resolve(strict=False)
+        if not path_is_within(resolved_test_dir, resolved_repository_root):
+            fail(f"QEMU generated directory resolves outside the repository: {self.test_dir}")
+        info = lstat_if_exists(self.test_dir)
+        if info is not None:
+            if not stat.S_ISDIR(info.st_mode):
+                fail(f"QEMU test directory is not a directory: {self.test_dir}")
+            if info.st_uid != os.getuid():
+                fail(f"QEMU test directory is not owned by the current user: {self.test_dir}")
+        if self.disk != self.test_dir / "disk.img":
+            fail(f"QEMU_DISK must be the disposable disk.img inside QEMU_TEST_DIR: {self.disk}")
+        validate_generated_file(self.disk, self.test_dir, replace=True)
 
     @classmethod
     def from_environment(cls) -> "Paths":
         raw_dir = os.environ.get("QEMU_TEST_DIR", str(DEFAULT_TEST_DIR))
         test_dir = absolute_path(raw_dir)
-        generated_root = absolute_path(DEFAULT_TEST_DIR)
-        if test_dir == Path("/") or test_dir == Path("/dev") or test_dir == ROOT:
-            fail(f"unsafe QEMU test directory: {test_dir}")
-        if not path_is_within(test_dir, generated_root):
-            fail(f"QEMU_TEST_DIR must be inside the repository generated directory: {generated_root}")
-        if generated_root.exists() and generated_root.is_symlink():
-            fail(f"QEMU generated directory must not be a symlink: {generated_root}")
-        reject_symlink_components(test_dir, generated_root)
-        if test_dir.exists() and test_dir.is_symlink():
-            fail(f"QEMU test directory must not be a symlink: {test_dir}")
-        if test_dir.exists() and not test_dir.is_dir():
-            fail(f"QEMU test directory is not a directory: {test_dir}")
-        if test_dir.exists() and test_dir.stat().st_uid != os.getuid():
-            fail(f"QEMU test directory is not owned by the current user: {test_dir}")
         raw_disk = os.environ.get("QEMU_DISK", str(test_dir / "disk.img"))
         disk = absolute_path(raw_disk)
-        if not path_is_within(disk, test_dir):
-            fail(f"QEMU_DISK must be inside QEMU_TEST_DIR ({test_dir}): {disk}")
-        if disk.name != "disk.img":
-            fail(f"QEMU_DISK must be the disposable disk.img inside QEMU_TEST_DIR: {disk}")
-        reject_symlink_components(disk, test_dir)
         return cls(test_dir, disk)
 
+    def ensure_test_dir(self) -> None:
+        """Create the already-validated generated directory without aliases."""
+
+        self.validate()
+        self.test_dir.mkdir(parents=True, exist_ok=True)
+        self.validate()
+
     def output(self, name: str, *, replace: bool = True) -> Path:
+        self.ensure_test_dir()
         path = self.test_dir / name
         if replace:
             return prepare_generated_file(path, self.test_dir)
@@ -355,6 +423,16 @@ def copy_vars(template: Path, destination: Path, paths: Paths) -> Path:
 
 def disk_fingerprint_path(paths: Paths) -> Path:
     return paths.test_dir / FINGERPRINT_FILENAME
+
+
+def invalidate_prior_success(paths: Paths) -> None:
+    """Remove reports that could otherwise misrepresent a failed new attempt."""
+
+    paths.ensure_test_dir()
+    for path in (disk_fingerprint_path(paths), paths.test_dir / "acceptance-metadata.txt"):
+        validate_generated_file(path, paths.test_dir, replace=True)
+        if lstat_if_exists(path) is not None:
+            path.unlink()
 
 
 def write_disk_fingerprint(paths: Paths, payload: dict[str, object]) -> Path:
@@ -383,73 +461,349 @@ def current_disk_fingerprint(paths: Paths, iso: Path, pair: FirmwarePair) -> dic
     return expected
 
 
+@dataclass(frozen=True)
+class SerialCommandResult:
+    """The exact output and exit status from one framed guest command."""
+
+    command: str
+    output: str
+    returncode: int
+
+    @property
+    def status(self) -> int:
+        """Compatibility-friendly spelling for callers discussing shell status."""
+
+        return self.returncode
+
+
+def shell_quote(value: str) -> str:
+    """Quote one value for the already-established POSIX serial shell."""
+
+    if "\x00" in value:
+        fail("serial shell commands cannot contain NUL bytes")
+    return "'" + value.replace("'", "'\"'\"'") + "'"
+
+
+def boot_mount_vfat_command(
+    mounts_path: str = "/proc/mounts", expected_source: str = "/dev/sda1"
+) -> str:
+    """Require the QEMU target's actual ESP, without depending on util-linux."""
+
+    if not expected_source.startswith("/dev/"):
+        fail(f"expected ESP source is not a device path: {expected_source!r}")
+
+    return (
+        "boot_source=\n"
+        "boot_fstype=\n"
+        "while read -r source mountpoint fstype options; do\n"
+        '    [ "$mountpoint" = /boot ] || continue\n'
+        "    boot_source=$source\n"
+        "    boot_fstype=$fstype\n"
+        "    break\n"
+        f"done < {shell_quote(mounts_path)}\n"
+        '[ "$boot_source" = '
+        f"{shell_quote(expected_source)}"
+        ' ] && [ "$boot_fstype" = vfat ]'
+    )
+
+
+def append_cmdline_token_command(config_path: str, token: str) -> str:
+    """Append a safe test token inside one shell-quoted kernel command line."""
+
+    if re.fullmatch(r"[A-Za-z0-9._-]+", token) is None:
+        fail(f"kernel command-line token is not shell-safe: {token!r}")
+    config = shell_quote(config_path)
+    temporary_template = shell_quote(f"{config_path}.home-regeneration.XXXXXX")
+    sed_program = f's#^cmdline="\\([^\"]*\\)"$#cmdline="\\1 {token}"#'
+    token_suffix = shell_quote(f' {token}"')
+    return (
+        f"config={config}\n"
+        "grep -Eq '^cmdline=\"[^\"]*\"$' \"$config\"\n"
+        f"temporary=$(mktemp {temporary_template})\n"
+        "trap 'rm -f \"$temporary\"' EXIT HUP INT TERM\n"
+        f"sed {shell_quote(sed_program)} \"$config\" > \"$temporary\"\n"
+        f"grep -Fq {token_suffix} \"$temporary\"\n"
+        "mv -f \"$temporary\" \"$config\"\n"
+        "trap - EXIT HUP INT TERM\n"
+        f"grep -Fq {token_suffix} \"$config\""
+    )
+
+
 class Serial:
+    """A serial transcript plus a silent, framed shell-control channel.
+
+    The transcript is append-only diagnostics.  Command results are copied
+    from the interval after a command is sent and before that command's
+    cryptographically unpredictable status frame; callers never receive the
+    transcript itself as a response object.
+    """
+
+    FRAME_PREFIX = b"\x1eHOME_SERIAL_"
+    FRAME_BEGIN = b"_BEGIN"
+    FRAME_STATUS = b"_STATUS_"
+    FRAME_SUFFIX = b"\x1f"
+    INITIAL_PROMPT = "~ $ "
+
     def __init__(self, sock: socket.socket, log_path: Path) -> None:
         self.sock = sock
         self.sock.setblocking(False)
         self.log_path = log_path
-        self.buffer = bytearray()
+        self.transcript = bytearray()
+        self._control_ready = False
+        self._closed_by_host = False
+        self._eof = False
+        self._read_error: Optional[OSError] = None
+        self._frame_sequence = 0
+
+    def _append_transcript(self, data: bytes) -> None:
+        self.transcript.extend(data)
+        try:
+            with self.log_path.open("ab") as stream:
+                stream.write(data)
+        except OSError as error:
+            fail(f"could not append the serial transcript {self.log_path}: {error}")
 
     def read_available(self) -> str:
-        changed = False
+        """Read and return only newly available serial text, retaining diagnostics."""
+
+        if self._closed_by_host:
+            return ""
+        received = bytearray()
         while True:
             try:
                 data = self.sock.recv(65536)
             except BlockingIOError:
                 break
-            except OSError:
+            except InterruptedError:
+                continue
+            except OSError as error:
+                self._read_error = error
                 break
             if not data:
+                self._eof = True
                 break
-            self.buffer.extend(data)
-            changed = True
-        if changed:
-            self.log_path.write_bytes(bytes(self.buffer))
-        return bytes(self.buffer).decode("utf-8", "replace")
+            received.extend(data)
+            self._append_transcript(data)
+        return bytes(received).decode("utf-8", "replace")
+
+    def _diagnostic_tail(self) -> str:
+        return bytes(self.transcript[-2000:]).decode("utf-8", "replace")
+
+    def _assert_usable(self, context: str) -> None:
+        if self._read_error is not None:
+            fail(f"could not read guest serial console while {context}: {self._read_error}; see {self.log_path}")
+        if self._eof:
+            fail(f"serial console reached EOF while {context}; see {self.log_path}\n{self._diagnostic_tail()}")
+        if self._closed_by_host:
+            fail(f"serial console is closed while {context}; see {self.log_path}")
+
+    @staticmethod
+    def _assert_process_live(process: subprocess.Popen[bytes], context: str) -> None:
+        if process.poll() is not None:
+            fail(f"QEMU exited unexpectedly while {context} (status {process.returncode})")
 
     def send(self, value: str | bytes) -> None:
+        self._assert_usable("sending a serial command")
         data = value.encode() if isinstance(value, str) else value
         try:
             self.sock.sendall(data)
         except OSError as error:
             fail(f"could not write to guest serial console: {error}")
 
-    def wait_for(self, pattern: str, timeout: float) -> str:
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            text = self.read_available()
-            if pattern in text:
-                return text
-            time.sleep(0.1)
-        text = self.read_available()
-        fail(f"timed out waiting for serial marker {pattern!r}; see {self.log_path}\n{text[-2000:]}")
-
-    def wait_for_after(self, pattern: str, start: int, timeout: float) -> str:
-        """Wait for a marker that must occur after an earlier buffer offset."""
+    def wait_for(
+        self,
+        pattern: str,
+        timeout: float,
+        *,
+        process: Optional[subprocess.Popen[bytes]] = None,
+        start: int = 0,
+    ) -> str:
+        """Wait for an initial serial readiness marker, never a command result."""
 
         deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            text = self.read_available()
-            if pattern in text[start:]:
-                return text
-            time.sleep(0.1)
-        text = self.read_available()
-        fail(f"timed out waiting for serial marker {pattern!r} after command; see {self.log_path}\n{text[-2000:]}")
+        needle = pattern.encode()
+        while True:
+            if process is not None:
+                self._assert_process_live(process, f"waiting for serial marker {pattern!r}")
+            self.read_available()
+            self._assert_usable(f"waiting for serial marker {pattern!r}")
+            if needle in self.transcript[start:]:
+                # This legacy readiness helper is intentionally kept distinct
+                # from framed command results. It is used only for the one
+                # initial shell prompt, before the silent control channel is
+                # established. Do not expose the diagnostic transcript as a
+                # response object even for this handshake.
+                return pattern
+            if time.monotonic() >= deadline:
+                fail(
+                    f"timed out waiting for serial marker {pattern!r}; see {self.log_path}\n"
+                    f"{self._diagnostic_tail()}"
+                )
+            time.sleep(0.05)
+
+    def _new_frame_token(self) -> str:
+        self._frame_sequence += 1
+        return f"{self._frame_sequence:x}{os.urandom(16).hex()}"
+
+    def _wait_for_frame(
+        self,
+        *,
+        command: str,
+        token: str,
+        start: int,
+        process: subprocess.Popen[bytes],
+        timeout: float,
+    ) -> SerialCommandResult:
+        """Extract output strictly between one begin and complete status frame."""
+
+        frame_prefix = self.FRAME_PREFIX + token.encode()
+        begin = frame_prefix + self.FRAME_BEGIN + self.FRAME_SUFFIX
+        status_prefix = frame_prefix + self.FRAME_STATUS
+        deadline = time.monotonic() + timeout
+        while True:
+            self._assert_process_live(process, f"waiting for serial command {command!r}")
+            self.read_available()
+            self._assert_usable(f"waiting for serial command {command!r}")
+            fresh = bytes(self.transcript[start:])
+            begin_start = fresh.find(begin)
+            if begin_start >= 0:
+                output_start = begin_start + len(begin)
+                frame_start = fresh.find(status_prefix, output_start)
+                if frame_start < 0:
+                    if time.monotonic() >= deadline:
+                        fail(
+                            f"timed out waiting for serial command status frame for {command!r}; "
+                            f"see {self.log_path}\n{self._diagnostic_tail()}"
+                        )
+                    time.sleep(0.05)
+                    continue
+                status_start = frame_start + len(status_prefix)
+                frame_end = fresh.find(self.FRAME_SUFFIX, status_start)
+                if frame_end >= 0:
+                    status_bytes = fresh[status_start:frame_end]
+                    if not re.fullmatch(rb"[0-9]+", status_bytes):
+                        fail(
+                            f"guest serial command returned a malformed status frame for {command!r}; "
+                            f"see {self.log_path}\n{self._diagnostic_tail()}"
+                        )
+                    self._assert_process_live(process, f"completing serial command {command!r}")
+                    return SerialCommandResult(
+                        command=command,
+                        output=fresh[output_start:frame_start].decode("utf-8", "replace"),
+                        returncode=int(status_bytes),
+                    )
+            if time.monotonic() >= deadline:
+                fail(
+                    f"timed out waiting for serial command frame for {command!r}; see {self.log_path}\n"
+                    f"{self._diagnostic_tail()}"
+                )
+            time.sleep(0.05)
+
+    def _send_framed_script(
+        self,
+        *,
+        command: str,
+        script: str,
+        process: subprocess.Popen[bytes],
+        timeout: float,
+    ) -> SerialCommandResult:
+        self._assert_process_live(process, f"sending serial command {command!r}")
+        self.read_available()
+        self._assert_usable(f"sending serial command {command!r}")
+        start = len(self.transcript)
+        token = self._new_frame_token()
+        # The complete binary frame is assembled by the guest shell.  The
+        # echoed input contains only a printf format string and a separate
+        # token assignment, so echo can never forge the frame being awaited.
+        begin_frame = "printf '\\036HOME_SERIAL_%s_BEGIN\\037' \"$__home_token\""
+        status_frame = "printf '\\036HOME_SERIAL_%s_STATUS_%s\\037' \"$__home_token\" \"$__home_status\""
+        self.send(f"__home_token={shell_quote(token)}; {begin_frame}; {script}; {status_frame}\n")
+        return self._wait_for_frame(
+            command=command,
+            token=token,
+            start=start,
+            process=process,
+            timeout=timeout,
+        )
+
+    def establish_shell(self, process: subprocess.Popen[bytes], timeout: float) -> None:
+        """Turn the login shell into a silent control channel exactly once."""
+
+        if self._control_ready:
+            return
+        # This is intentionally the only prompt dependency.  Once the login
+        # shell is known to exist, disable terminal echo/output translation and
+        # suppress PS1/PS2 before accepting framed command responses.
+        self.wait_for(self.INITIAL_PROMPT, timeout, process=process)
+        result = self._send_framed_script(
+            command="serial shell setup",
+            # Use the conditional form so a shell whose profile enabled
+            # errexit still reports a failed terminal setup instead of
+            # exiting before its status frame.
+            script=(
+                "if stty -echo -opost; then __home_status=0; "
+                "else __home_status=$?; fi; PS1=; PS2=; export PS1 PS2"
+            ),
+            process=process,
+            timeout=timeout,
+        )
+        if result.returncode != 0:
+            fail(
+                f"could not configure serial terminal echo/output (status {result.returncode}); "
+                f"see {self.log_path}\n{result.output[-2000:]}"
+            )
+        self._control_ready = True
+
+    def command(
+        self,
+        command: str,
+        *,
+        process: subprocess.Popen[bytes],
+        timeout: float,
+    ) -> SerialCommandResult:
+        self.establish_shell(process, timeout)
+        return self._send_framed_script(
+            command=command,
+            # A checked transport must not turn ``failed; successful`` into
+            # success. The ``if`` also keeps an outer serial shell with
+            # errexit enabled alive long enough to emit the child's status.
+            # Expected probe failures remain explicit through shell
+            # conditionals/``||`` and the caller's ``check=False`` choice.
+            script=(
+                f"if sh -ec {shell_quote(command)}; then __home_status=0; "
+                "else __home_status=$?; fi"
+            ),
+            process=process,
+            timeout=timeout,
+        )
 
     def close(self) -> None:
+        if self._closed_by_host:
+            return
         self.read_available()
+        self._closed_by_host = True
         self.sock.close()
 
 
 class QMP:
     def __init__(self, sock: socket.socket) -> None:
         self.sock = sock
-        self.sock.settimeout(10)
-        self.file = sock.makefile("rwb", buffering=0)
-        greeting = self._read_message()
-        if "QMP" not in greeting:
-            fail(f"unexpected QMP greeting: {greeting}")
-        self.command("qmp_capabilities")
+        self._closed = False
+        try:
+            self.sock.settimeout(10)
+            self.file = sock.makefile("rwb", buffering=0)
+            greeting = self._read_message()
+            if "QMP" not in greeting:
+                fail(f"unexpected QMP greeting: {greeting}")
+            self.command("qmp_capabilities")
+        except BaseException as primary:
+            try:
+                self.close()
+            except BaseException as cleanup_error:
+                add_note = getattr(primary, "add_note", None)
+                if add_note is not None:
+                    add_note(f"cleanup failure while closing failed QMP setup: {cleanup_error}")
+            raise
 
     def _read_message(self) -> dict:
         line = self.file.readline()
@@ -492,8 +846,12 @@ class QMP:
         self.command("quit")
 
     def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
         try:
-            self.file.close()
+            if hasattr(self, "file"):
+                self.file.close()
         finally:
             self.sock.close()
 
@@ -525,8 +883,9 @@ class VM:
     iso: Optional[Path] = None
     disk_format: str = "raw"
     network: bool = True
+    network_unavailable: bool = False
     test_seed: bool = False
-    qemu_renderer: bool = False
+    qemu_renderer: bool = True
     display: str = "none"
     no_reboot: bool = False
     memory: int = 1024
@@ -563,26 +922,34 @@ class VM:
             "ich9-ahci,id=sata",
             "-device",
             "ide-hd,bus=sata.2,drive=target,bootindex=2",
-            "-device",
-            "virtio-gpu-pci",
+            "-vga",
+            QEMU_GPU,
             "-device",
             "virtio-keyboard-pci",
             "-device",
             "virtio-mouse-pci",
         ]
         if self.qemu_renderer:
-            args.extend(["-fw_cfg", "name=opt/home-renderer,string=pixman"])
+            args.extend(["-fw_cfg", f"name=opt/home-renderer,string={QEMU_RENDERER}"])
         if self.iso:
             args.extend(
                 [
-                    "-drive",
-                    f"if=none,id=installer,format=raw,media=cdrom,readonly=on,file={self.iso}",
                     "-device",
-                    "ide-cd,bus=sata.1,drive=installer,bootindex=1",
+                    "qemu-xhci,id=usb",
+                    "-drive",
+                    f"if=none,id=installer,format=raw,readonly=on,file={self.iso}",
+                    "-device",
+                    "usb-storage,bus=usb.0,drive=installer,bootindex=1",
                 ]
             )
         if self.network:
-            args.extend(["-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0"])
+            netdev = "user,id=net0"
+            if self.network_unavailable:
+                # Keep the virtual NIC present while disabling user-mode IPv4.
+                # The installer's DHCP attempt must fail without making boot
+                # depend on a missing device or external host network.
+                netdev += ",ipv4=off"
+            args.extend(["-netdev", netdev, "-device", "virtio-net-pci,netdev=net0"])
         else:
             args.extend(["-net", "none"])
         if self.test_seed:
@@ -600,7 +967,18 @@ class VM:
         return args
 
     def start(self) -> None:
-        self.paths.test_dir.mkdir(parents=True, exist_ok=True)
+        if self.process or self.serial or self.qmp:
+            fail(f"VM {self.stage} has already been started")
+        self.paths.ensure_test_dir()
+        # QEMU writes both of these paths. Revalidate them at the launch
+        # boundary instead of relying on the environment-only Paths check:
+        # overlays and variable stores are supplied by internal callers.
+        self.disk = require_generated_regular_file(self.disk, self.paths.test_dir, "QEMU disk")
+        self.vars_path = require_generated_regular_file(
+            self.vars_path,
+            self.paths.test_dir,
+            "OVMF variable store",
+        )
         qmp_path = prepare_generated_socket(self.paths.test_dir / f"{self.stage}.qmp", self.paths.test_dir)
         serial_path = prepare_generated_socket(self.paths.test_dir / f"{self.stage}.serial", self.paths.test_dir)
         self.qmp_path = qmp_path
@@ -621,54 +999,102 @@ class VM:
                 "chardev:serial0",
             ]
         )
-        stderr = self.stderr_log.open("wb")
-        self.process = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=stderr, stderr=stderr)
-        qmp_socket = connect_unix(qmp_path, self.process, 30)
-        serial_socket = connect_unix(serial_path, self.process, 30)
-        self.qmp = QMP(qmp_socket)
-        self.serial = Serial(serial_socket, self.serial_log)
+        qmp_socket: Optional[socket.socket] = None
+        serial_socket: Optional[socket.socket] = None
+        try:
+            # Popen duplicates these descriptors for the child.  Closing the
+            # parent copy immediately prevents a failed connection setup from
+            # retaining the QEMU log file indefinitely.
+            with self.stderr_log.open("wb") as stderr:
+                self.process = subprocess.Popen(
+                    args,
+                    stdin=subprocess.DEVNULL,
+                    stdout=stderr,
+                    stderr=stderr,
+                )
+            qmp_socket = connect_unix(qmp_path, self.process, 30)
+            self.qmp = QMP(qmp_socket)
+            qmp_socket = None
+            serial_socket = connect_unix(serial_path, self.process, 30)
+            self.serial = Serial(serial_socket, self.serial_log)
+            serial_socket = None
+        except BaseException as primary:
+            for sock in (serial_socket, qmp_socket):
+                if sock is None:
+                    continue
+                try:
+                    sock.close()
+                except OSError as cleanup_error:
+                    self._add_cleanup_note(primary, "closing startup socket", cleanup_error)
+            try:
+                self.close()
+            except BaseException as cleanup_error:
+                self._add_cleanup_note(primary, "cleaning up failed VM startup", cleanup_error)
+            raise
 
     def require_live(self) -> tuple[subprocess.Popen[bytes], Serial, QMP]:
         if not self.process or not self.serial or not self.qmp:
             fail(f"VM {self.stage} is not running")
         return self.process, self.serial, self.qmp
 
-    def wait_for_exit(self, timeout: float) -> int:
-        process, serial, _ = self.require_live()
+    @staticmethod
+    def _add_cleanup_note(primary: BaseException, operation: str, cleanup_error: BaseException) -> None:
+        add_cleanup_note(primary, operation, cleanup_error)
+
+    def _wait_for_stopped(
+        self,
+        process: subprocess.Popen[bytes],
+        serial: Serial,
+        timeout: float,
+        action: str,
+    ) -> int:
         deadline = time.monotonic() + timeout
         while process.poll() is None and time.monotonic() < deadline:
             serial.read_available()
             time.sleep(0.2)
         if process.poll() is None:
-            fail(f"VM {self.stage} did not exit before the {timeout:.0f}s deadline")
+            fail(f"VM {self.stage} did not {action} before the {timeout:.0f}s deadline")
         serial.read_available()
         return int(process.returncode)
 
+    def wait_for_exit(self, timeout: float, *, check: bool = True) -> int:
+        process, serial, _ = self.require_live()
+        status = self._wait_for_stopped(process, serial, timeout, "exit")
+        if check and status != 0:
+            fail(f"VM {self.stage} exited with unexpected status {status}")
+        return status
+
     def clean_shutdown(self, timeout: float = 60) -> None:
         process, serial, qmp = self.require_live()
+        # A normal stage reaches this method while its guest is still alive.
+        # Accepting an earlier zero-status exit here would turn an unexpected
+        # VM disappearance into a passing cleanup path.
+        if process.poll() is not None:
+            fail(
+                f"VM {self.stage} exited unexpectedly before clean shutdown "
+                f"(status {process.returncode})"
+            )
         try:
             # Alpine's minimal target does not run an ACPI daemon.  Request a
             # real guest poweroff through the already-authenticated serial
             # recovery shell, then retain QMP as a bounded fallback.
             serial.send("doas poweroff\n")
         except (HarnessError, OSError):
-            pass
-        deadline = time.monotonic() + timeout
-        while process.poll() is None and time.monotonic() < deadline:
-            serial.read_available()
-            time.sleep(0.2)
-        if process.poll() is None:
+            if process.poll() is not None:
+                fail(
+                    f"VM {self.stage} exited unexpectedly before clean shutdown "
+                    f"(status {process.returncode})"
+                )
+        try:
+            status = self._wait_for_stopped(process, serial, timeout, "complete a clean shutdown")
+        except HarnessError:
             try:
                 qmp.powerdown()
             except HarnessError:
                 pass
-            deadline = time.monotonic() + timeout
-            while process.poll() is None and time.monotonic() < deadline:
-                serial.read_available()
-                time.sleep(0.2)
-        if process.poll() is None:
-            fail(f"VM {self.stage} did not complete a clean shutdown")
-        serial.read_available()
+            status = self._wait_for_stopped(process, serial, timeout, "complete a clean shutdown")
+        if status != 0:
+            fail(f"VM {self.stage} shut down with unexpected status {status}")
 
     def abort(self) -> None:
         if not self.process:
@@ -688,52 +1114,319 @@ class VM:
         except subprocess.TimeoutExpired:
             self.process.kill()
             self.process.wait(timeout=10)
-        if self.serial:
-            self.serial.close()
-        if self.qmp:
-            self.qmp.close()
+
+    def _remove_owned_endpoint(self, endpoint: Optional[Path]) -> None:
+        if endpoint is None:
+            return
+        endpoint, _ = validate_generated_path(endpoint, self.paths.test_dir, "socket")
+        info = lstat_if_exists(endpoint)
+        if info is None:
+            return
+        if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
+            fail(f"refusing non-owned QEMU control endpoint during cleanup: {endpoint}")
+        endpoint.unlink()
 
     def close(self) -> None:
+        failure: Optional[BaseException] = None
+
+        def attempt(operation: str, callback) -> None:
+            nonlocal failure
+            try:
+                callback()
+            except BaseException as error:
+                if failure is None:
+                    failure = error
+                else:
+                    self._add_cleanup_note(failure, operation, error)
+
         if self.process and self.process.poll() is None:
-            self.abort()
-        else:
-            if self.serial:
-                self.serial.close()
-            if self.qmp:
-                self.qmp.close()
+            attempt("stopping QEMU", self.abort)
+        if self.serial:
+            serial = self.serial
+            self.serial = None
+            attempt("closing serial control", serial.close)
+        if self.qmp:
+            qmp = self.qmp
+            self.qmp = None
+            attempt("closing QMP control", qmp.close)
         for endpoint in (self.qmp_path, self.serial_path):
-            if endpoint and endpoint.is_socket():
-                endpoint.unlink()
+            attempt("removing QEMU control endpoint", lambda endpoint=endpoint: self._remove_owned_endpoint(endpoint))
+        if failure is not None:
+            raise failure
+
+
+def add_cleanup_note(primary: BaseException, operation: str, cleanup_error: BaseException) -> None:
+    """Preserve a primary failure while making required cleanup diagnosable."""
+
+    note = f"cleanup failure while {operation}: {cleanup_error}"
+    add_note = getattr(primary, "add_note", None)
+    if add_note is not None:
+        add_note(note)
+
+
+def cleanup_after_failure(
+    primary: BaseException,
+    operation: str,
+    callback: Callable[[], None],
+) -> None:
+    """Run required cleanup without allowing it to replace an earlier failure."""
+
+    try:
+        callback()
+    except BaseException as cleanup_error:
+        add_cleanup_note(primary, operation, cleanup_error)
 
 
 def shutdown_and_close(vm: VM) -> None:
+    primary: Optional[BaseException] = None
     try:
         vm.clean_shutdown()
-    finally:
+    except BaseException as error:
+        primary = error
+    try:
         vm.close()
+    except BaseException as cleanup_error:
+        if primary is None:
+            raise
+        add_cleanup_note(primary, "closing VM", cleanup_error)
+    if primary is not None:
+        raise primary
 
 
-def serial_command(vm: VM, command: str, timeout: float = 10) -> str:
-    _, serial, _ = vm.require_live()
-    marker = f"__HOME_E2E_{time.monotonic_ns()}__"
-    start = len(serial.read_available())
-    serial.send(f"{command}; printf '%s\\n' '{marker}'\n")
-    output = serial.wait_for_after(marker, start, timeout)
-    marker_end = output.find(marker, start) + len(marker)
-    # The marker is printed before ash emits the next prompt.  Wait for that
-    # fresh prompt before sending another command so the guest tty cannot
-    # overrun while the shell is returning to its read loop.
-    return serial.wait_for_after("~ $ ", marker_end, timeout)
+def serial_command(
+    vm: VM,
+    command: str,
+    timeout: float = 10,
+    *,
+    check: bool = True,
+) -> SerialCommandResult:
+    """Run one guest command with fresh output and a captured shell status.
+
+    Commands are checked by default.  Callers that intentionally probe an
+    expected failure must pass ``check=False`` and inspect ``returncode``.
+    """
+
+    process, serial, _ = vm.require_live()
+    result = serial.command(command, process=process, timeout=timeout)
+    if check and result.returncode != 0:
+        fail(
+            f"guest command failed with status {result.returncode}: {command!r}; "
+            f"see {serial.log_path}\n{result.output[-2000:]}"
+        )
+    return result
 
 
-FACTS_PROCESS_COMMAND = r"""dwl_count=0; foot_count=0; process_count=0; dwl_uid=; foot_uid=; foot_wayland=0; for proc in /proc/[0-9]*; do [ -r "$proc/comm" ] || continue; process_count=$((process_count + 1)); comm=$(cat "$proc/comm" 2>/dev/null || true); if [ "$comm" = dwl ]; then dwl_count=$((dwl_count + 1)); [ -n "$dwl_uid" ] || dwl_uid=$(awk '/^Uid:/ {print $2; exit}' "$proc/status" 2>/dev/null || true); elif [ "$comm" = foot ]; then foot_count=$((foot_count + 1)); [ -n "$foot_uid" ] || foot_uid=$(awk '/^Uid:/ {print $2; exit}' "$proc/status" 2>/dev/null || true); if [ -r "$proc/environ" ] && tr '\000' '\n' < "$proc/environ" 2>/dev/null | grep -q '^WAYLAND_DISPLAY='; then foot_wayland=$((foot_wayland + 1)); fi; fi; done; printf 'fact_dwl=%s\n' $dwl_count; printf 'fact_foot=%s\n' $foot_count; printf 'fact_processes=%s\n' $process_count; [ -n "$dwl_uid" ] && printf 'fact_dwl_uid=%s\n' $dwl_uid; [ -n "$foot_uid" ] && printf 'fact_foot_uid=%s\n' $foot_uid; printf 'fact_foot_wayland=%s\n' $foot_wayland"""
+def wait_for_guest_file(vm: VM, path: str, description: str, timeout: float = 15) -> SerialCommandResult:
+    """Wait for a guest-created file without treating a missing file as output."""
 
-FACTS_RUNTIME_COMMAND = r"""printf 'fact_user=%s\n' $(id -un); printf 'fact_uid=%s\n' $(id -u); printf 'fact_runtime=%s\n' $(stat -c '%u:%g:%a' /run/user/1000 2>/dev/null || echo missing); printf 'fact_runtime_owner=%s\n' $(stat -c '%u:%g:%a' /run/user/1000 2>/dev/null || echo missing); if find /run/user/1000 -maxdepth 1 -type s -name 'wayland-*' 2>/dev/null | grep -q .; then echo fact_wayland=present; wayland_socket=$(find /run/user/1000 -maxdepth 1 -type s -name 'wayland-*' -print -quit); printf 'fact_wayland_socket=%s\n' $(stat -c '%u:%g:%a' "$wayland_socket" 2>/dev/null || echo missing); else echo fact_wayland=missing; fi; [ -e /dev/dri/card0 ] && echo fact_drm=present || echo fact_drm=missing; [ -e /dev/input/event0 ] && echo fact_input=present || echo fact_input=missing; [ -S /run/seatd.sock ] && echo fact_seat=present || echo fact_seat=missing; printf 'fact_seat_socket=%s\n' $(stat -c '%u:%g:%a' /run/seatd.sock 2>/dev/null || echo missing); printf 'fact_mem_available_kib=%s\n' $(awk '/^MemAvailable:/ {print $2; exit}' /proc/meminfo)"""
+    deadline = time.monotonic() + timeout
+    last: Optional[SerialCommandResult] = None
+    while True:
+        remaining = max(0.1, deadline - time.monotonic())
+        result = serial_command(
+            vm,
+            f"cat -- {shell_quote(path)}",
+            timeout=min(5, remaining),
+            check=False,
+        )
+        if result.returncode == 0:
+            return result
+        last = result
+        if result.returncode != 1:
+            fail(
+                f"{description} file read failed with unexpected status {result.returncode}: {path}; "
+                f"see the serial transcript\n{result.output[-2000:]}"
+            )
+        if time.monotonic() >= deadline:
+            fail(
+                f"{description} did not produce readable output before the {timeout:.0f}s deadline: {path}; "
+                f"last status={last.returncode} output={last.output[-2000:]!r}"
+            )
+        time.sleep(min(0.5, max(0.01, deadline - time.monotonic())))
+
+
+def wait_for_guest_file_output(
+    vm: VM,
+    path: str,
+    expected: str,
+    description: str,
+    timeout: float = 15,
+) -> str:
+    """Require exact, fresh output from a guest action observed through a file."""
+
+    result = wait_for_guest_file(vm, path, description, timeout)
+    if result.output != expected:
+        fail(
+            f"{description} produced unexpected output from {path}: "
+            f"expected {expected!r}, got {result.output!r}"
+        )
+    return result.output
+
+
+def assert_foot_pty(vm: VM, terminal_path: str) -> None:
+    """Require a graphical terminal path to belong to a foot process tree."""
+
+    if re.fullmatch(r"/dev/pts/[0-9]+", terminal_path) is None:
+        fail(f"graphical command did not report a pseudo-terminal path: {terminal_path!r}")
+    command = f"""set -e
+target={shell_quote(terminal_path)}
+foot_pty=0
+for proc in /proc/[0-9]*; do
+    [ -r "$proc/status" ] || continue
+    [ -e "$proc/fd/0" ] || continue
+    terminal=$(readlink "$proc/fd/0" 2>/dev/null || :)
+    [ "$terminal" = "$target" ] || continue
+    ancestor=${{proc##*/}}
+    steps=0
+    while [ "$steps" -lt 32 ]; do
+        comm=$(cat "/proc/$ancestor/comm" 2>/dev/null || :)
+        if [ "$comm" = foot ]; then
+            foot_pty=1
+            break
+        fi
+        parent=$(awk '/^PPid:/ {{print $2; exit}}' "/proc/$ancestor/status" 2>/dev/null || :)
+        case "$parent" in
+            ''|*[!0-9]*) break ;;
+        esac
+        [ "$parent" != "$ancestor" ] || break
+        ancestor=$parent
+        steps=$((steps + 1))
+    done
+    [ "$foot_pty" = 0 ] || break
+done
+printf 'fact_foot_pty=%s\\n' "$foot_pty"
+"""
+    result = serial_command(vm, command)
+    if result.output != "fact_foot_pty=1\n":
+        fail(
+            f"graphical pseudo-terminal {terminal_path} is not owned by a foot session: "
+            f"{result.output!r}"
+        )
+
+
+FACTS_PROCESS_COMMAND = r"""set -e
+dwl_count=0
+foot_count=0
+process_count=0
+dwl_uid=
+foot_uid=
+foot_wayland=0
+dwl_drm_device=
+dwl_drm_open=
+for proc in /proc/[0-9]*; do
+    [ -r "$proc/comm" ] || continue
+    process_count=$((process_count + 1))
+    comm=$(cat "$proc/comm" 2>/dev/null || true)
+    if [ "$comm" = dwl ]; then
+        dwl_count=$((dwl_count + 1))
+        [ -n "$dwl_uid" ] || dwl_uid=$(awk '/^Uid:/ {print $2; exit}' "$proc/status" 2>/dev/null || true)
+        if [ -r "$proc/environ" ]; then
+            dwl_drm_device=$(tr '\000' '\n' < "$proc/environ" 2>/dev/null | sed -n 's/^WLR_DRM_DEVICES=//p' | head -n 1)
+        fi
+        if [ -z "$dwl_drm_open" ]; then
+            for fd in "$proc"/fd/*; do
+                opened=$(readlink "$fd" 2>/dev/null || true)
+                case "$opened" in
+                    /dev/dri/card[0-9]*)
+                        dwl_drm_open=$(readlink -f "$fd" 2>/dev/null || true)
+                        break
+                        ;;
+                esac
+            done
+        fi
+    elif [ "$comm" = foot ]; then
+        foot_count=$((foot_count + 1))
+        [ -n "$foot_uid" ] || foot_uid=$(awk '/^Uid:/ {print $2; exit}' "$proc/status" 2>/dev/null || true)
+        if [ -r "$proc/environ" ] && tr '\000' '\n' < "$proc/environ" 2>/dev/null | grep -q '^WAYLAND_DISPLAY='; then
+            foot_wayland=$((foot_wayland + 1))
+        fi
+    fi
+done
+printf 'fact_dwl=%s\n' "$dwl_count"
+printf 'fact_foot=%s\n' "$foot_count"
+printf 'fact_processes=%s\n' "$process_count"
+if [ -n "$dwl_uid" ]; then printf 'fact_dwl_uid=%s\n' "$dwl_uid"; fi
+if [ -n "$foot_uid" ]; then printf 'fact_foot_uid=%s\n' "$foot_uid"; fi
+printf 'fact_foot_wayland=%s\n' "$foot_wayland"
+if [ -n "$dwl_drm_device" ]; then printf 'fact_dwl_drm_device=%s\n' "$dwl_drm_device"; else printf 'fact_dwl_drm_device=missing\n'; fi
+if [ -n "$dwl_drm_open" ]; then printf 'fact_dwl_drm_open=%s\n' "$dwl_drm_open"; else printf 'fact_dwl_drm_open=missing\n'; fi"""
+
+FACTS_RUNTIME_COMMAND = r"""set -e
+printf 'fact_user=%s\n' "$(id -un)"
+printf 'fact_uid=%s\n' "$(id -u)"
+printf 'fact_runtime=%s\n' "$(stat -c '%u:%g:%a' /run/user/1000 2>/dev/null || echo missing)"
+printf 'fact_runtime_owner=%s\n' "$(stat -c '%u:%g:%a' /run/user/1000 2>/dev/null || echo missing)"
+if find /run/user/1000 -maxdepth 1 -type s -name 'wayland-*' 2>/dev/null | grep -q .; then
+    echo fact_wayland=present
+    wayland_socket=$(find /run/user/1000 -maxdepth 1 -type s -name 'wayland-*' -print -quit)
+    printf 'fact_wayland_socket=%s\n' "$(stat -c '%u:%g:%a' "$wayland_socket" 2>/dev/null || echo missing)"
+else
+    echo fact_wayland=missing
+fi
+
+drm_device=
+drm_driver=
+drm_identity=
+drm_matches=0
+for candidate in /dev/dri/by-path/*-card; do
+    [ -L "$candidate" ] || continue
+    resolved=$(readlink -f "$candidate" 2>/dev/null || true)
+    case "$resolved" in
+        /dev/dri/card[0-9]*) ;;
+        *) continue ;;
+    esac
+    card=${resolved##*/}
+    driver_link=/sys/class/drm/$card/device/driver
+    [ -L "$driver_link" ] || continue
+    driver=$(readlink "$driver_link" 2>/dev/null || true)
+    [ "${driver##*/}" = bochs-drm ] || continue
+    drm_matches=$((drm_matches + 1))
+    drm_device=$resolved
+    drm_driver=${driver##*/}
+    drm_identity=$candidate
+done
+if [ "$drm_matches" -eq 0 ]; then
+    # Minimal udev setups may omit /dev/dri/by-path.  Resolve the intended
+    # device from its sysfs driver identity instead of assuming card0.
+    for driver_link in /sys/class/drm/card*/device/driver; do
+        [ -L "$driver_link" ] || continue
+        driver=$(readlink "$driver_link" 2>/dev/null || true)
+        [ "${driver##*/}" = bochs-drm ] || continue
+        card_path=${driver_link%/device/driver}
+        card=${card_path##*/}
+        candidate=/dev/dri/$card
+        [ -e "$candidate" ] || continue
+        drm_matches=$((drm_matches + 1))
+        drm_device=$candidate
+        drm_driver=${driver##*/}
+        drm_identity=$driver_link
+    done
+fi
+if [ "$drm_matches" -eq 1 ]; then
+    echo fact_drm=present
+    printf 'fact_drm_device=%s\n' "$drm_device"
+    printf 'fact_drm_device_realpath=%s\n' "$(readlink -f "$drm_device" 2>/dev/null || echo missing)"
+    printf 'fact_drm_driver=%s\n' "$drm_driver"
+    printf 'fact_drm_identity=%s\n' "$drm_identity"
+else
+    echo fact_drm=missing
+    echo fact_drm_device=missing
+    echo fact_drm_device_realpath=missing
+    echo fact_drm_driver=missing
+    echo fact_drm_identity=missing
+fi
+
+if [ -e /dev/input/event0 ]; then echo fact_input=present; else echo fact_input=missing; fi
+if [ -S /run/seatd.sock ]; then echo fact_seat=present; else echo fact_seat=missing; fi
+printf 'fact_seat_socket=%s\n' "$(stat -c '%u:%g:%a' /run/seatd.sock 2>/dev/null || echo missing)"
+mem_available=$(awk '/^MemAvailable:/ {print $2; exit}' /proc/meminfo)
+printf 'fact_mem_available_kib=%s\n' "$mem_available"
+"""
 
 
 def facts(vm: VM, timeout: float = 10) -> dict[str, str]:
-    output = serial_command(vm, FACTS_PROCESS_COMMAND, timeout)
-    output += "\n" + serial_command(vm, FACTS_RUNTIME_COMMAND, timeout)
+    output = serial_command(vm, FACTS_PROCESS_COMMAND, timeout).output
+    output += "\n" + serial_command(vm, FACTS_RUNTIME_COMMAND, timeout).output
     result: dict[str, str] = {}
     for line in output.splitlines():
         if line.startswith("fact_") and "=" in line:
@@ -749,8 +1442,8 @@ def wait_for_session(vm: VM, expected_foot: int, timeout: float = 120) -> dict[s
     # login shell exists are lost or can leave only a truncated command in
     # the line discipline.  The prompt is the bounded readiness handshake for
     # the serial recovery shell; the graphical-session facts remain separate.
-    _, serial, _ = vm.require_live()
-    serial.wait_for("~ $ ", timeout)
+    process, serial, _ = vm.require_live()
+    serial.establish_shell(process, timeout)
     last: dict[str, str] = {}
     while time.monotonic() < deadline:
         last = facts(vm, timeout=min(10, max(1, deadline - time.monotonic())))
@@ -766,9 +1459,15 @@ def wait_for_session(vm: VM, expected_foot: int, timeout: float = 120) -> dict[s
             and last.get("fact_wayland") == "present"
             and last.get("fact_wayland_socket", "").startswith("1000:")
             and last.get("fact_drm") == "present"
+            and last.get("fact_drm_device", "") != "missing"
+            and last.get("fact_drm_device_realpath", "") != "missing"
+            and last.get("fact_drm_identity", "") != "missing"
             and last.get("fact_input") == "present"
             and last.get("fact_seat") == "present"
             and last.get("fact_seat_socket") != "missing"
+            and last.get("fact_drm_driver") == "bochs-drm"
+            and last.get("fact_dwl_drm_device") == last.get("fact_drm_device")
+            and last.get("fact_dwl_drm_open") == last.get("fact_drm_device_realpath")
         ):
             return last
         time.sleep(1)
@@ -795,6 +1494,8 @@ def write_acceptance_metadata(
         f"qemu_machine: {QEMU_MACHINE}",
         "qemu_acceleration: tcg",
         "qemu_cpu: Broadwell",
+        f"gpu: {QEMU_GPU} bochs-drm",
+        f"renderer: {QEMU_RENDERER} via fw_cfg opt/home-renderer",
         f"qemu_memory_mb: {env_int('QEMU_MEMORY_MB', 1024)}",
         f"qemu_smp: {env_int('QEMU_SMP', 4)}",
         "storage: ICH9 AHCI SATA",
@@ -813,6 +1514,11 @@ def write_acceptance_metadata(
         f"installed_efi_bytes: {target_metrics.get('efi_bytes', 'unknown')}",
         f"installed_root_used_kib: {target_metrics.get('root_used_kib', 'unknown')}",
         f"wayland_socket: {session_facts.get('fact_wayland_socket', 'unknown')}",
+        f"drm_device: {session_facts.get('fact_drm_device', 'unknown')}",
+        f"drm_device_realpath: {session_facts.get('fact_drm_device_realpath', 'unknown')}",
+        f"drm_identity: {session_facts.get('fact_drm_identity', 'unknown')}",
+        f"dwl_drm_device: {session_facts.get('fact_dwl_drm_device', 'unknown')}",
+        f"dwl_drm_open: {session_facts.get('fact_dwl_drm_open', 'unknown')}",
         f"seat_socket: {session_facts.get('fact_seat_socket', 'unknown')}",
         "screenshots:",
     ]
@@ -823,6 +1529,7 @@ def write_acceptance_metadata(
         "installed",
         "offline-reboot",
         "offline-reboot-boot",
+        "offline-network",
         "fallback-prepare",
         "fallback",
         "regeneration-canonical",
@@ -851,6 +1558,41 @@ def write_acceptance_metadata(
     paths.output("acceptance-metadata.txt").write_text("\n".join(lines) + "\n")
 
 
+def publish_acceptance_success(
+    paths: Paths,
+    *,
+    iso: Path,
+    disk: Path,
+    fingerprint: dict[str, object],
+    boot_seconds: float,
+    session_facts: dict[str, str],
+    target_metrics: dict[str, str],
+    screenshots: list[Path],
+) -> None:
+    """Publish retained-run evidence only after the complete test succeeds."""
+
+    try:
+        write_disk_fingerprint(paths, fingerprint)
+        write_acceptance_metadata(
+            paths,
+            iso=iso,
+            disk=disk,
+            fingerprint=fingerprint,
+            boot_seconds=boot_seconds,
+            session_facts=session_facts,
+            target_metrics=target_metrics,
+            screenshots=screenshots,
+        )
+    except BaseException as primary:
+        try:
+            invalidate_prior_success(paths)
+        except BaseException as cleanup_error:
+            add_note = getattr(primary, "add_note", None)
+            if add_note is not None:
+                add_note(f"cleanup failure while invalidating incomplete acceptance evidence: {cleanup_error}")
+        raise
+
+
 def send_text(qmp: QMP, text: str) -> None:
     """Type a small US-layout ASCII string through QEMU's input device."""
 
@@ -860,6 +1602,10 @@ def send_text(qmp: QMP, text: str) -> None:
         "/": ("slash",),
         ".": ("dot",),
         ">": ("shift", "dot"),
+        "|": ("shift", "backslash"),
+        "$": ("shift", "4"),
+        "?": ("shift", "slash"),
+        "&": ("shift", "7"),
         "_": ("shift", "minus"),
         "-": ("minus",),
         "=": ("equal",),
@@ -875,6 +1621,9 @@ def send_text(qmp: QMP, text: str) -> None:
             qmp.chord(*punctuation[character])
         else:
             fail(f"QEMU text injection does not support this character: {character!r}")
+        # Keep the guest input queue from collapsing adjacent QMP key events
+        # while a terminal emulator and shell are processing a longer line.
+        time.sleep(0.01)
 
 
 def read_ppm(path: Path) -> tuple[int, int, bytes]:
@@ -934,10 +1683,10 @@ def assert_screenshot_changed(before: Path, after: Path) -> None:
         min_y = min(min_y, y)
         max_x = max(max_x, x)
         max_y = max(max_y, y)
-    # A command must alter a glyph-sized region of the terminal viewport.  The
-    # independent marker check below establishes which command ran; this
-    # bounded pixel assertion establishes that rendered terminal content, not
-    # merely a QEMU cursor or process count, changed on screen.
+    # A command must alter a glyph-sized region of the terminal viewport. The
+    # independent pseudo-terminal challenge establishes which command ran;
+    # this bounded pixel assertion establishes that rendered terminal content,
+    # not merely a QEMU cursor or process count, changed on screen.
     if changed < 200 or max_x - min_x < 30 or max_y - min_y < 8:
         fail(
             "graphical output changed without a rendered terminal-sized region "
@@ -946,27 +1695,48 @@ def assert_screenshot_changed(before: Path, after: Path) -> None:
         )
 
 
+def assert_rendered_terminal_output(before: Path, after: Path) -> None:
+    """Require fresh changed pixels in the cleared terminal's upper view."""
+
+    before_width, before_height, before_pixels = read_ppm(before)
+    after_width, after_height, after_pixels = read_ppm(after)
+    if (before_width, before_height) != (after_width, after_height):
+        fail(f"rendered terminal screenshots have different dimensions: {before}, {after}")
+    crop_height = max(120, before_height // 3)
+    changed = 0
+    for y in range(min(crop_height, before_height)):
+        row_start = y * before_width * 3
+        row_end = row_start + before_width * 3
+        for offset in range(row_start, row_end, 3):
+            if max(
+                abs(before_pixels[offset + channel] - after_pixels[offset + channel])
+                for channel in range(3)
+            ) > 8:
+                changed += 1
+    if changed < 50:
+        fail(
+            "fresh graphical command did not change the cleared terminal viewport "
+            f"in a rendered region (changed_pixels={changed})"
+        )
+
+
 def qemu_disk_create(paths: Paths, disk: Path) -> None:
+    paths.ensure_test_dir()
+    disk = absolute_path(disk)
+    if disk != paths.disk:
+        fail(f"QEMU disk creation must use the disposable disk.img: {paths.disk}")
     qemu_img = require_command("qemu-img")
-    validate_generated_file(disk, paths.test_dir, replace=True)
-    if disk.exists():
-        disk.unlink()
-    fingerprint = disk_fingerprint_path(paths)
-    validate_generated_file(fingerprint, paths.test_dir, replace=True)
-    if fingerprint.exists():
-        fingerprint.unlink()
-    subprocess.run([qemu_img, "create", "-f", "raw", str(disk), "8G"], check=True)
+    disk = prepare_generated_file(disk, paths.test_dir)
+    prepare_generated_file(disk_fingerprint_path(paths), paths.test_dir)
+    run_capture([qemu_img, "create", "-f", "raw", str(disk), "8G"])
 
 
 def qemu_disk_overlay(paths: Paths, base: Path, overlay: Path) -> None:
     qemu_img = require_command("qemu-img")
-    base = read_regular_file(base, "installed QEMU disk")
-    validate_generated_file(overlay, paths.test_dir, replace=True)
-    if overlay.exists():
-        overlay.unlink()
-    subprocess.run(
+    base = require_generated_regular_file(base, paths.test_dir, "installed QEMU disk")
+    overlay = prepare_generated_file(overlay, paths.test_dir)
+    run_capture(
         [qemu_img, "create", "-f", "qcow2", "-F", "raw", "-b", str(base), str(overlay)],
-        check=True,
     )
 
 
@@ -980,8 +1750,9 @@ def make_vm(
     iso: Optional[Path] = None,
     disk_format: str = "raw",
     network: bool = True,
+    network_unavailable: bool = False,
     test_seed: bool = False,
-    qemu_renderer: bool = False,
+    qemu_renderer: bool = True,
     display: str = "none",
     no_reboot: bool = False,
 ) -> VM:
@@ -994,6 +1765,7 @@ def make_vm(
         iso=iso,
         disk_format=disk_format,
         network=network,
+        network_unavailable=network_unavailable,
         test_seed=test_seed,
         qemu_renderer=qemu_renderer,
         display=display,
@@ -1011,6 +1783,7 @@ def installed_session_stage(
     stage: str,
     *,
     network: bool,
+    network_unavailable: bool = False,
     disk_format: str = "raw",
     no_reboot: bool = False,
 ) -> VM:
@@ -1021,18 +1794,27 @@ def installed_session_stage(
         vars_path,
         stage,
         network=network,
+        network_unavailable=network_unavailable,
         disk_format=disk_format,
         no_reboot=no_reboot,
-        qemu_renderer=True,
     )
-    vm.start()
+    try:
+        vm.start()
+    except BaseException as primary:
+        # This helper returns a live VM to its caller.  If connection setup
+        # fails before that return, ownership is still here and must not leak
+        # the subprocess, sockets, or log handles to a later caller finally.
+        cleanup_after_failure(primary, "closing failed installed stage", vm.close)
+        raise
     return vm
 
 
 def test_installer(iso: Path) -> None:
-    iso = read_regular_file(absolute_path(iso), "installer ISO")
     paths = Paths.from_environment()
-    paths.test_dir.mkdir(parents=True, exist_ok=True)
+    # A failed attempt must never leave a prior green report or fingerprint
+    # looking current. These paths are validated before anything is removed.
+    invalidate_prior_success(paths)
+    iso = read_regular_file(absolute_path(iso), "installer ISO")
     pair = firmware_pair()
     fingerprint = fingerprint_payload(iso, pair)
     disk = paths.disk
@@ -1047,9 +1829,16 @@ def test_installer(iso: Path) -> None:
         serial = vm.serial_log.read_text(errors="replace") if vm.serial_log else ""
         if "Installation complete." not in serial:
             fail(f"installer VM exited without successful installation (status {status}); see {vm.serial_log}")
+        if "efivarfs verified at /sys/firmware/efi/efivars (fstype=efivarfs)" not in serial:
+            fail(f"installer did not record an exact efivarfs mount verification; see {vm.serial_log}")
+        if "explicit disabled QEMU test seed" not in serial:
+            fail(f"installer did not record the authenticated QEMU Secure Boot seed path; see {vm.serial_log}")
         if status != 0:
             fail(f"installer VM exited with status {status}; see {vm.serial_log}")
-    finally:
+    except BaseException as primary:
+        cleanup_after_failure(primary, "closing installer VM", vm.close)
+        raise
+    else:
         vm.close()
 
     boot_started = time.monotonic()
@@ -1063,10 +1852,16 @@ def test_installer(iso: Path) -> None:
         boot_seconds = time.monotonic() - boot_started
         metric_output = serial_command(
             installed,
-            "printf 'efi_bytes=%s\\n' \"$(doas stat -c %s /boot/EFI/alpine/linux-lts.efi)\"; "
-            "printf 'root_used_kib=%s\\n' \"$(df -kP / | tail -n 1 | awk '{print $3}')\"; "
-            "printf 'services=%s\\n' \"$(rc-status --all 2>/dev/null | tr '\\n' ' ')\"",
-        )
+            "efi_bytes=$(doas stat -c %s /boot/EFI/alpine/linux-lts.efi) || exit $?\n"
+            "df_output=$(df -kP /) || exit $?\n"
+            "root_used_kib=$(printf '%s\\n' \"$df_output\" | awk 'END {print $3}') || exit $?\n"
+            "[ -n \"$root_used_kib\" ] || exit 1\n"
+            "services=$(rc-status --all 2>/dev/null) || exit $?\n"
+            "services=$(printf '%s' \"$services\" | tr '\\n' ' ') || exit $?\n"
+            "printf 'efi_bytes=%s\\n' \"$efi_bytes\"\n"
+            "printf 'root_used_kib=%s\\n' \"$root_used_kib\"\n"
+            "printf 'services=%s\\n' \"$services\"",
+        ).output
         for line in metric_output.splitlines():
             if "=" in line and line.split("=", 1)[0] in {"efi_bytes", "root_used_kib", "services"}:
                 name, value = line.split("=", 1)
@@ -1082,45 +1877,68 @@ def test_installer(iso: Path) -> None:
         if facts(installed).get("fact_foot") != "1":
             fail("ordinary Return unexpectedly created a terminal")
 
-        # Verify upstream dwl's exact Alt+Shift+Return binding and a command
-        # in the graphical PTY.
-        installed.qmp.chord("alt", "shift", "ret")
+        # Ctrl+Return opens exactly one second foot. The per-run tty challenge
+        # below must be emitted by that graphical pseudo-terminal, not echoed
+        # by the serial control shell or inherited from an earlier command.
+        installed.qmp.chord("ctrl", "ret")
         wait_for_session(installed, 2)
-        marker = f"e2emarker{time.monotonic_ns()}"
+        marker = f"e2epty{os.urandom(8).hex()}"
         marker_path = f"/tmp/{marker}"
-        serial_command(installed, f"rm -f {marker_path}")
+        rendered_path = f"/tmp/{marker}-rendered"
+        rendered_status_path = f"/tmp/{marker}-rendered-status"
+        serial_command(installed, f"rm -f {marker_path} {rendered_path} {rendered_status_path}")
+        # Do not queue multiple shell lines before the graphical terminal has
+        # consumed the first one. The fresh tty file is both a focus handshake
+        # and an exact proof that the command ran in the second foot PTY.
+        send_text(installed.qmp, f"tty > {marker_path}\n")
+        graphical_tty = wait_for_guest_file(installed, marker_path, "graphical terminal challenge").output
+        if re.fullmatch(r"/dev/pts/[0-9]+\n", graphical_tty) is None:
+            fail(f"graphical terminal command did not return an exact pseudo-terminal path: {graphical_tty!r}")
+        assert_foot_pty(installed, graphical_tty.rstrip("\n"))
+        installed.qmp.chord("ctrl", "l")
+        time.sleep(0.5)
         before_command = paths.output("installed-terminal-before-command.ppm")
         installed.qmp.screenshot(before_command)
         say(f"pre-command screenshot: {assert_screenshot(before_command)}")
         screenshot_paths.append(before_command)
-        send_text(installed.qmp, f"echo {marker} > {marker_path}\n")
-        deadline = time.monotonic() + 15
-        marker_seen = False
-        while time.monotonic() < deadline:
-            output = serial_command(installed, f"cat {marker_path} 2>/dev/null || true", timeout=5)
-            if marker in output:
-                marker_seen = True
-                break
-            time.sleep(1)
-        if not marker_seen:
-            fail("the graphical terminal command did not produce its independent marker")
+        # tee writes one per-run result to the foot viewport and a separate
+        # file. Its exact fresh file content proves the graphical command ran;
+        # the screenshot then proves that same output rendered, without OCR or
+        # a brittle whole-screen golden image.
+        send_text(
+            installed.qmp,
+            f"echo {marker} | tee {rendered_path}\n",
+        )
+        wait_for_guest_file_output(
+            installed,
+            rendered_path,
+            marker + "\n",
+            "rendered graphical terminal challenge",
+        )
+        time.sleep(0.2)
         after_marker = paths.output("installed-terminal-after-command.ppm")
         installed.qmp.screenshot(after_marker)
         say(f"rendered command screenshot: {assert_screenshot(after_marker)}")
         assert_screenshot_changed(before_command, after_marker)
+        assert_rendered_terminal_output(before_command, after_marker)
         screenshot_paths.append(after_marker)
+        # The graphical shell retains the pipeline status while host-side
+        # serial reads and screenshots are happening. Read it in a separate,
+        # paced command so both tee's exact output and successful exit are
+        # observed without letting the status command itself affect the image.
+        send_text(installed.qmp, f"echo $? > {rendered_status_path}\n")
+        wait_for_guest_file_output(
+            installed,
+            rendered_status_path,
+            "0\n",
+            "rendered graphical terminal command status",
+        )
 
-        env_marker = f"e2eenv{time.monotonic_ns()}"
+        env_marker = f"e2eenv{os.urandom(8).hex()}"
         env_path = f"/tmp/{env_marker}"
         serial_command(installed, f"rm -f {env_path}")
         send_text(installed.qmp, f"env > {env_path}\n")
-        env_output = ""
-        deadline = time.monotonic() + 15
-        while time.monotonic() < deadline:
-            env_output = serial_command(installed, f"cat {env_path} 2>/dev/null || true", timeout=5)
-            if "WAYLAND_DISPLAY=" in env_output:
-                break
-            time.sleep(1)
+        env_output = wait_for_guest_file(installed, env_path, "graphical terminal environment").output
         for expected in (
             "HOME=/home/josh",
             "USER=josh",
@@ -1145,7 +1963,7 @@ def test_installer(iso: Path) -> None:
             time.sleep(1)
         else:
             fail("closing the last foot client did not leave dwl running")
-        installed.qmp.chord("alt", "shift", "ret")
+        installed.qmp.chord("ctrl", "ret")
         wait_for_session(installed, 1)
 
         # Use the real recovery VT and compositor exit path.  tty2 must stay an
@@ -1154,21 +1972,25 @@ def test_installer(iso: Path) -> None:
         time.sleep(2)
         send_text(installed.qmp, "josh\n")
         time.sleep(2)
-        recovery_marker = f"recovery{time.monotonic_ns()}"
+        recovery_marker = f"recovery{os.urandom(8).hex()}"
         recovery_path = f"/tmp/{recovery_marker}"
-        serial_command(installed, f"rm -f {recovery_path}")
-        send_text(installed.qmp, f"echo {recovery_marker} > {recovery_path}\n")
-        recovery_output = ""
-        deadline = time.monotonic() + 15
-        while time.monotonic() < deadline:
-            recovery_output = serial_command(
-                installed, f"cat {recovery_path} 2>/dev/null || true", timeout=5
-            )
-            if recovery_marker in recovery_output:
-                break
-            time.sleep(1)
-        else:
-            fail("tty2 did not reach an ash recovery login")
+        recovery_status_path = f"/tmp/{recovery_marker}-status"
+        serial_command(installed, f"rm -f {recovery_path} {recovery_status_path}")
+        send_text(installed.qmp, f"tty > {recovery_path}\n")
+        wait_for_guest_file_output(
+            installed,
+            recovery_path,
+            "/dev/tty2\n",
+            "tty2 recovery shell",
+        )
+        time.sleep(0.2)
+        send_text(installed.qmp, f"echo $? > {recovery_status_path}\n")
+        wait_for_guest_file_output(
+            installed,
+            recovery_status_path,
+            "0\n",
+            "tty2 recovery command status",
+        )
         recovery_facts = facts(installed)
         if recovery_facts.get("fact_dwl") != "1" or recovery_facts.get("fact_foot") != "1":
             fail("recovery VT changed the compositor count")
@@ -1191,7 +2013,36 @@ def test_installer(iso: Path) -> None:
         # single-session autologin restart.
         send_text(installed.qmp, "exit\n")
         wait_for_session(installed, 1)
-    finally:
+
+        # Kill the compositor from the serial recovery channel to model an
+        # abnormal compositor failure. The tty1 ash shell must remain
+        # recoverable, and explicitly exiting it must restart one fresh
+        # graphical session through agetty.
+        serial_command(
+            installed,
+            "dwl_pid=$(for proc in /proc/[0-9]*; do "
+            "[ \"$(cat \"$proc/comm\" 2>/dev/null || true)\" = dwl ] && "
+            "printf '%s\\n' \"${proc##*/}\" && break; done); "
+            "[ -n \"$dwl_pid\" ] && doas kill -TERM \"$dwl_pid\"",
+        )
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            current = facts(installed)
+            if current.get("fact_dwl") == "0":
+                break
+            time.sleep(1)
+        else:
+            fail("terminating dwl did not leave the tty1 recovery shell")
+        installed.qmp.chord("ctrl", "alt", "f2")
+        time.sleep(1)
+        send_text(installed.qmp, "chvt 1\n")
+        time.sleep(1)
+        send_text(installed.qmp, "exit\n")
+        wait_for_session(installed, 1)
+    except BaseException as primary:
+        cleanup_after_failure(primary, "shutting down installed VM", lambda: shutdown_and_close(installed))
+        raise
+    else:
         shutdown_and_close(installed)
 
     # A real reboot with no network must still reach the desktop. Record the
@@ -1210,7 +2061,10 @@ def test_installer(iso: Path) -> None:
         wait_for_session(offline, 1)
         offline.serial.send("doas reboot\n")
         offline.wait_for_exit(150)
-    finally:
+    except BaseException as primary:
+        cleanup_after_failure(primary, "closing offline reboot VM", offline.close)
+        raise
+    else:
         offline.close()
     offline_boot_vars = copy_vars(pair.vars_template, paths.output("offline-boot-vars.fd"), paths)
     offline_boot = installed_session_stage(
@@ -1218,8 +2072,35 @@ def test_installer(iso: Path) -> None:
     )
     try:
         wait_for_session(offline_boot, 1, timeout=150)
-    finally:
+    except BaseException as primary:
+        cleanup_after_failure(primary, "shutting down offline boot VM", lambda: shutdown_and_close(offline_boot))
+        raise
+    else:
         shutdown_and_close(offline_boot)
+
+    # A present NIC with both user-mode address families disabled must not
+    # delay or prevent the graphical session. This is distinct from the
+    # offline-reboot stage, which has no NIC at all.
+    offline_network = installed_session_stage(
+        paths,
+        pair,
+        disk,
+        offline_boot_vars,
+        "offline-network",
+        network=True,
+        network_unavailable=True,
+    )
+    try:
+        wait_for_session(offline_network, 1, timeout=150)
+    except BaseException as primary:
+        cleanup_after_failure(
+            primary,
+            "shutting down unavailable-network VM",
+            lambda: shutdown_and_close(offline_network),
+        )
+        raise
+    else:
+        shutdown_and_close(offline_network)
 
     # Prove the fallback path rather than merely inferring it from fresh
     # variables: remove the canonical path on a disposable COW overlay, then
@@ -1240,8 +2121,19 @@ def test_installer(iso: Path) -> None:
     )
     try:
         wait_for_session(fallback_prepare, 1)
-        serial_command(fallback_prepare, "doas rm -f /boot/EFI/alpine/linux-lts.efi")
-    finally:
+        serial_command(
+            fallback_prepare,
+            "doas sh -ec 'rm -f -- /boot/EFI/alpine/linux-lts.efi; "
+            "test ! -e /boot/EFI/alpine/linux-lts.efi'",
+        )
+    except BaseException as primary:
+        cleanup_after_failure(
+            primary,
+            "shutting down fallback preparation VM",
+            lambda: shutdown_and_close(fallback_prepare),
+        )
+        raise
+    else:
         shutdown_and_close(fallback_prepare)
     fallback_vars = copy_vars(pair.vars_template, paths.output("fallback-vars.fd"), paths)
     fallback = installed_session_stage(
@@ -1255,7 +2147,10 @@ def test_installer(iso: Path) -> None:
     )
     try:
         wait_for_session(fallback, 1)
-    finally:
+    except BaseException as primary:
+        cleanup_after_failure(primary, "shutting down fallback VM", lambda: shutdown_and_close(fallback))
+        raise
+    else:
         shutdown_and_close(fallback)
 
     # Regenerate both EFI images on separate disposable overlays.  Remove one
@@ -1274,21 +2169,42 @@ def test_installer(iso: Path) -> None:
             regen_disk,
             regen_vars,
             name,
-            network=False,
+            network=True,
             disk_format="qcow2",
         )
         try:
             wait_for_session(regen, 1)
-            command = (
-                "doas sh -c 'apk --no-network fix kernel-hooks && "
-                "trigger=/usr/libexec/home-installer/kernel-hooks.trigger; "
-                "m=$(basename $(find /lib/modules -mindepth 1 -maxdepth 1 -type d -name \"*-lts\" | head -n 1)); "
-                "\"$trigger\" \"/lib/modules/$m\"; "
-                "cmp /boot/EFI/alpine/linux-lts.efi /boot/EFI/BOOT/BOOTX64.EFI'"
+            regeneration_token = f"home-installer-regeneration-{os.urandom(16).hex()}"
+            regeneration_script = (
+                f"{boot_mount_vfat_command(expected_source='/dev/sda1')}\n"
+                "grep -q \"root=UUID=\" /etc/kernel-hooks.d/secureboot.conf\n"
+                f"{append_cmdline_token_command('/etc/kernel-hooks.d/secureboot.conf', regeneration_token)}\n"
+                "before=$(sha256sum /boot/EFI/alpine/linux-lts.efi)\n"
+                "before=${before%% *}\n"
+                "apk --no-cache fix --reinstall secureboot-hook linux-lts\n"
+                f"grep -Fq {shell_quote(regeneration_token)} /etc/kernel-hooks.d/secureboot.conf\n"
+                "[ -L /etc/kernel-hooks.d/50-secureboot.hook ]\n"
+                "[ -x /usr/share/kernel-hooks.d/secureboot.hook ]\n"
+                "after=$(sha256sum /boot/EFI/alpine/linux-lts.efi)\n"
+                "after=${after%% *}\n"
+                "[ \"$before\" != \"$after\" ]\n"
+                "[ -s /boot/EFI/alpine/linux-lts.efi ]\n"
+                "[ -s /boot/EFI/BOOT/BOOTX64.EFI ]\n"
+                "cmp /boot/EFI/alpine/linux-lts.efi /boot/EFI/BOOT/BOOTX64.EFI"
             )
-            serial_command(regen, command, timeout=120)
-            serial_command(regen, f"doas rm -f -- {removed_path}")
-        finally:
+            serial_command(regen, f"doas sh -ec {shell_quote(regeneration_script)}", timeout=300)
+            serial_command(
+                regen,
+                f"doas sh -ec 'rm -f -- {removed_path}; test ! -e {removed_path}'",
+            )
+        except BaseException as primary:
+            cleanup_after_failure(
+                primary,
+                f"shutting down {name} VM",
+                lambda: shutdown_and_close(regen),
+            )
+            raise
+        else:
             shutdown_and_close(regen)
 
         # The canonical Alpine path is normally selected by the installer-created
@@ -1308,12 +2224,24 @@ def test_installer(iso: Path) -> None:
         )
         try:
             wait_for_session(boot, 1)
+            cmdline = serial_command(boot, "cat /proc/cmdline").output
+            if regeneration_token not in cmdline:
+                fail(
+                    f"{name} boot did not consume its newly generated kernel command line "
+                    f"token {regeneration_token!r}: {cmdline!r}"
+                )
             say(f"kernel hook regeneration: {name} booted with {removed_path} removed")
-        finally:
+        except BaseException as primary:
+            cleanup_after_failure(
+                primary,
+                f"shutting down {name} boot VM",
+                lambda: shutdown_and_close(boot),
+            )
+            raise
+        else:
             shutdown_and_close(boot)
 
-    write_disk_fingerprint(paths, fingerprint)
-    write_acceptance_metadata(
+    publish_acceptance_success(
         paths,
         iso=iso,
         disk=disk,
@@ -1328,11 +2256,11 @@ def test_installer(iso: Path) -> None:
 
 def interactive_run() -> None:
     paths = Paths.from_environment()
-    disk = read_regular_file(paths.disk, "retained QEMU disk")
+    paths.ensure_test_dir()
+    disk = require_generated_regular_file(paths.disk, paths.test_dir, "retained QEMU disk")
     pair = firmware_pair()
     iso = read_regular_file(ROOT / "dist" / "home-installer.iso", "current installer ISO")
     current_disk_fingerprint(paths, iso, pair)
-    paths.test_dir.mkdir(parents=True, exist_ok=True)
     vars_path = paths.test_dir / "run-vars.fd"
     if vars_path.exists():
         validate_generated_file(vars_path, paths.test_dir, replace=True)
@@ -1349,6 +2277,54 @@ def interactive_run() -> None:
     os.execv(qemu, args)
 
 
+def probe_qemu_profile(qemu: str) -> None:
+    """Launch the selected headless device profile and complete QMP shutdown."""
+
+    args = [
+        qemu,
+        "-nodefaults",
+        "-machine",
+        f"{QEMU_MACHINE},accel=tcg",
+        "-cpu",
+        "Broadwell",
+        "-m",
+        "64",
+        "-smp",
+        "1",
+        "-vga",
+        QEMU_GPU,
+        "-device",
+        "virtio-keyboard-pci",
+        "-device",
+        "virtio-mouse-pci",
+        "-device",
+        "qemu-xhci,id=usb",
+        "-display",
+        "none",
+        "-qmp",
+        "stdio",
+    ]
+    payload = (
+        '{"execute":"qmp_capabilities"}\n'
+        '{"execute":"quit"}\n'
+    )
+    try:
+        result = subprocess.run(
+            args,
+            input=payload,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=15,
+        )
+    except subprocess.TimeoutExpired as error:
+        fail(f"QEMU profile probe timed out: {error}")
+    if result.returncode != 0:
+        fail(f"QEMU profile probe failed ({result.returncode}):\n{result.stdout}")
+    if '"QMP"' not in result.stdout or '"return"' not in result.stdout:
+        fail(f"QEMU profile probe did not complete the QMP handshake:\n{result.stdout}")
+
+
 def doctor() -> None:
     missing = []
     for name in ("docker", "python3", "qemu-system-x86_64", "qemu-img"):
@@ -1360,28 +2336,33 @@ def doctor() -> None:
     machine = run_capture([qemu, "-machine", "help"]).stdout
     cpu = run_capture([qemu, "-cpu", "help"]).stdout
     devices = run_capture([qemu, "-device", "help"]).stdout
+    vga = run_capture([qemu, "-vga", "help"]).stdout
     displays = run_capture([qemu, "-display", "help"]).stdout
     requirements = {
         f"machine {QEMU_MACHINE}": QEMU_MACHINE in machine,
         "Broadwell CPU": re.search(r"^\s*Broadwell(?:[-.\s]|$)", cpu, re.MULTILINE) is not None,
-        "virtio GPU": "virtio-gpu-pci" in devices,
+        "std VGA": re.search(r"^\s*std(?:\s|$)", vga, re.MULTILINE) is not None,
         "virtio keyboard": "virtio-keyboard-pci" in devices,
         "virtio mouse": "virtio-mouse-pci" in devices,
         "ICH9 AHCI": "ich9-ahci" in devices,
         "SATA ide-hd": "ide-hd" in devices,
+        "Q35 USB controller": "qemu-xhci" in devices,
+        "USB storage": "usb-storage" in devices,
         "interactive display": any(name in displays for name in ("cocoa", "sdl", "gtk")),
     }
     for name, available in requirements.items():
         say(f"{'ok' if available else 'missing'}: {name}")
     if not all(requirements.values()):
         fail("installed QEMU does not expose the required x86_64 test profile")
+    probe_qemu_profile(qemu)
+    say("ok: selected std VGA/bochs-drm profile launched and shut down through QMP")
     buildx = run_capture([require_command("docker"), "buildx", "version"], check=False)
     if buildx.returncode != 0:
         fail(f"Docker Buildx is unavailable:\n{buildx.stdout}")
     say(f"ok: {qemu}")
     say("ok: Docker and Buildx are available for the linux/amd64 image build")
     say("note: TCG is required for the Intel guest on macOS arm64; HVF is not used")
-    say("note: QEMU Ethernet/virtio GPU/input do not certify physical Wi-Fi/i915/touchpad behavior")
+    say("note: QEMU Ethernet/std VGA/input do not certify physical Wi-Fi/i915/touchpad behavior")
 
 
 def main(argv: list[str]) -> int:

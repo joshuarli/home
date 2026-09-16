@@ -19,7 +19,10 @@ grep -Fq 'while [ "$attempt" -lt 60 ] && [ ! -x /root/home-installer/install.sh 
 grep -Fq 'attempt=$((attempt + 1))' "$service"
 grep -Fq "home-installer: install script is not available after 60 seconds" "$service"
 grep -Fq 'return 1' "$service"
-! grep -Fq 'while [ ! -f /root/home-installer/install.sh ]; do' "$service"
+if grep -Fq 'while [ ! -f /root/home-installer/install.sh ]; do' "$service"; then
+	echo 'overlay contract: unbounded installer wait remains' >&2
+	exit 1
+fi
 sh -n "$service"
 
 echo 'overlay retry contract tests passed'

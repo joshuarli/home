@@ -131,10 +131,11 @@ iface lo inet loopback
 EOF
 
 # The installer replaces only this root identifier after it has created the
-# GPT.  The hook-generated EFI image and fstab use the same PARTUUID scheme.
+# filesystem. Alpine's stock initramfs resolves UUID= without a private
+# initramfs patch, and the hook-generated EFI image and fstab use the same UUID.
 mkdir -p "$rootfs/etc/kernel-hooks.d"
 cat > "$rootfs/etc/kernel-hooks.d/secureboot.conf" <<'EOF'
-cmdline="console=ttyS0,115200 console=tty0 root=PARTUUID=INSTALLER_ROOT_PARTUUID rootfstype=ext4 rw"
+cmdline="console=ttyS0,115200 console=tty0 root=UUID=INSTALLER_ROOT_UUID rootfstype=ext4 rw"
 signing_disabled=yes
 output_dir="/boot/EFI/alpine"
 output_name="linux-{flavor}.efi"
@@ -159,44 +160,30 @@ trap - EXIT HUP INT TERM
 EOF
 chmod 0755 "$rootfs/etc/kernel-hooks.d/60-home-fallback"
 
-# apk --no-scripts keeps the package trigger payload in scripts.tar.gz but
-# does not materialize a callable trigger file. Extract the exact packaged
-# dispatcher once so the installer can replay Alpine's real kernel-hooks
-# trigger after the target PARTUUID and /boot are known.
-kernel_trigger_archive="$rootfs/lib/apk/db/scripts.tar.gz"
-kernel_trigger_entry=$(tar -tzf "$kernel_trigger_archive" |
-	awk '/kernel-hooks[^\/]*\.trigger$/ {print; exit}')
-[ -n "$kernel_trigger_entry" ] || {
-	echo 'kernel-hooks trigger payload is missing from apk database' >&2
+# secureboot-hook invokes mkinitfs itself while producing the EFI image.  Its
+# package documentation directs users to suppress mkinitfs's separate generic
+# trigger, which would otherwise build an unused standalone initramfs after
+# every kernel change.  Keep the package's stock feature list intact: Alpine
+# 3.24.1's base feature already supplies nlplug-findfs and persistent-storage
+# support for root=UUID=, so no repository-owned initramfs feature is needed.
+mkinitfs_config="$rootfs/etc/mkinitfs/mkinitfs.conf"
+[ -f "$mkinitfs_config" ] || {
+	echo 'mkinitfs configuration is missing from the installed package' >&2
 	exit 1
 }
-mkdir -p "$rootfs/usr/libexec/home-installer"
-tar -xOzf "$kernel_trigger_archive" "$kernel_trigger_entry" \
-	> "$rootfs/usr/libexec/home-installer/kernel-hooks.trigger"
-chmod 0755 "$rootfs/usr/libexec/home-installer/kernel-hooks.trigger"
+grep -q '^features=' "$mkinitfs_config" || {
+	echo 'mkinitfs configuration has no package-provided feature set' >&2
+	exit 1
+}
+if grep -q '^disable_trigger=' "$mkinitfs_config"; then
+	sed -i -E 's/^disable_trigger=.*/disable_trigger=yes/' "$mkinitfs_config"
+else
+	cat >> "$mkinitfs_config" <<'EOF'
 
-# secureboot-hook normally installs this symlink and asks mkinitfs to run its
-# trigger.  Those package scripts are intentionally suppressed during the
-# alternate-root install, so make the trigger decision explicit here and leave
-# the real generation to the install-time hook after /boot is mounted.  Keep
-# Alpine's packaged feature set: without it mkinitfs would produce an archive
-# containing only firmware and no /init entrypoint.
-mkdir -p "$rootfs/etc/mkinitfs"
-/work/patch-initramfs.sh "$rootfs/usr/share/mkinitfs/initramfs-init"
-cat > "$rootfs/etc/mkinitfs/features.d/home.files" <<'EOF'
-/sbin/blkid
-/sbin/mdev
-EOF
-# nlplug-findfs invokes mdev as its hotplug helper before the installed
-# userspace is available.  Supply the BusyBox applet in the initramfs so
-# Alpine's persistent-storage helper can create the PARTUUID links needed by
-# the kernel command line.  This symlink is not an installed OpenRC device
-# manager; eudev remains the only target runtime device manager.
-ln -sf /bin/busybox "$rootfs/sbin/mdev"
-cat > "$rootfs/etc/mkinitfs/mkinitfs.conf" <<'EOF'
-features="ata base cdrom ext4 home keymap kms mmc nvme raid scsi usb virtio"
+# secureboot-hook generates the embedded initramfs for the EFI image.
 disable_trigger=yes
 EOF
+fi
 
 # Keep one device-manager implementation.  These are the services created by
 # Alpine's setup-devd udev path, expressed as links because apk scripts do not

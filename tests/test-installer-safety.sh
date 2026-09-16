@@ -18,25 +18,47 @@ contains() {
 	}
 }
 
+not_contains() {
+	file=$1
+	text=$2
+	if grep -Fq "$text" "$file"; then
+		echo "unexpected contract text in $file: $text" >&2
+		exit 1
+	fi
+}
+
+missing() {
+	[ ! -e "$1" ] || {
+		echo "obsolete path remains: $1" >&2
+		exit 1
+	}
+}
+
 # Physical invocations reject both unattended environment inputs.  QEMU gets
 # them only after the authenticated fw_cfg test seed has enabled test mode.
 contains "$installer" '[ -z "${INSTALLER_DISK-}" ]'
 contains "$installer" '[ -z "${INSTALLER_CONFIRM-}" ]'
 contains "$installer" '[ "${INSTALLER_TEST_MODE-}" = 1 ]'
 contains "$installer" '[ -r "$qemu_seed_file" ]'
-contains "$installer" '[ "$confirmation" = "$disk" ] || die'
+contains "$installer" 'require_disk_confirmation "$confirmation" "$disk"'
 
 # A mounted swap partition is resolved to its parent before the destructive
 # target check; checking only the swap child would permit erasing its disk.
 contains "$installer" 'active_swap_disk=$(parent_disk "$active_swap"'
-contains "$installer" '[ "$active_swap_disk" != "$disk" ] || die "target disk has active swap: $disk"'
+contains "$installer" 'target disk has active swap: $disk'
 
-# The real Alpine trigger is extracted into the prepared rootfs and replayed
-# only after the installer has substituted the target PARTUUID and mounted
-# the ESP.
-contains "$configure" 'kernel_trigger_entry=$(tar -tzf "$kernel_trigger_archive"'
-contains "$configure" 'tar -xOzf "$kernel_trigger_archive" "$kernel_trigger_entry"'
-contains "$installer" 'chroot "$target" /bin/sh "$kernel_hook_trigger"'
+# Alpine 3.24.1's packaged initramfs resolves a filesystem UUID directly.
+# The installer must substitute that one identifier before it runs the
+# package-owned kernel hook after mounting the ESP; it must not retain a
+# copied trigger dispatcher or an initramfs source patch.
+contains "$configure" 'root=UUID=INSTALLER_ROOT_UUID'
+contains "$installer" 'root_uuid=$(blkid -s UUID -o value "$root_partition")'
+contains "$installer" 'UUID=$root_uuid / ext4 defaults 0 1'
+contains "$installer" 'INSTALLER_ROOT_UUID'
+not_contains "$configure" 'PARTUUID'
+not_contains "$configure" 'kernel-hooks.trigger'
+not_contains "$installer" 'kernel-hooks.trigger'
+missing "$repo/rootfs/patch-initramfs.sh"
 
 # GUI startup is restricted to tty1 and has an explicit recovery bypass;
 # session environment and runtime ownership are established by the guarded
@@ -48,15 +70,26 @@ contains "$session" 'export XDG_SESSION_TYPE=wayland'
 contains "$runtime" 'modprobe qemu_fw_cfg'
 contains "$runtime" 'renderer_flag=/run/home-installer-qemu-renderer'
 contains "$session" 'renderer_file=/run/home-installer-qemu-renderer'
-contains "$session" 'WLR_DRM_DEVICES=/dev/dri/card0'
-! grep -R -q 'home-session' "$repo/rootfs" --exclude=home-login --exclude=home-session
+contains "$session" 'find_qemu_drm_device()'
+contains "$session" '/dev/dri/by-path/*-card'
+contains "$session" '[ "${driver##*/}" = bochs-drm ]'
+contains "$session" 'export WLR_DRM_DEVICES=$qemu_drm_device'
+if grep -R -q 'exec /usr/bin/home-session' "$repo/rootfs" --exclude=home-login --exclude=home-session; then
+	echo 'home-session is invoked outside its guarded login path' >&2
+	exit 1
+fi
 
 # Alpine has no dwl package in this release.  The build consumes a pinned
-# upstream tarball with its stock config, whose XWayland flags are disabled by
-# default; no repository-owned dwl package or config may be required here.
+# upstream tarball with only the Ctrl+Return terminal binding and wmenu-run
+# removal; no repository-owned dwl package, config, or runtime daemon exists.
 contains "$dockerfile" 'https://codeberg.org/dwl/dwl/archive/v0.8.tar.gz'
 contains "$dockerfile" 'install -m 0755 dwl /work/dwl'
-[ ! -e "$repo/dwl" ]
-! grep -R -q 'COPY dwl' "$repo" --exclude-dir=.git --exclude-dir=dist
+contains "$dockerfile" 'WLR_MODIFIER_CTRL,          XKB_KEY_Return,      spawn,            {.v = termcmd}'
+contains "$dockerfile" 'wmenu-run'
+missing "$repo/dwl"
+if grep -R -q 'COPY dwl' "$repo" --exclude-dir=.git --exclude-dir=dist --exclude=test-installer-safety.sh; then
+	echo 'repository-owned dwl source is copied into the build' >&2
+	exit 1
+fi
 
 echo 'installer safety and session contract tests passed'

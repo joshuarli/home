@@ -59,5 +59,5 @@ cp "$iso" /work/out/home-installer.iso
 	echo "iso bytes: $(stat -c '%s' /work/out/home-installer.iso)"
 	echo "iso sha256: $(sha256sum /work/out/home-installer.iso | awk '{print $1}')"
 	echo 'kernel flavor: linux-lts'
-	echo 'installed EFI image: generated after installation from the target PARTUUID; measured by the QEMU acceptance harness'
+	echo 'installed EFI image: generated after installation from the target filesystem UUID; measured by the QEMU acceptance harness'
 } > /work/out/iso-metadata.txt

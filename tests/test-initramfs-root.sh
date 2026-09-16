@@ -2,29 +2,41 @@
 set -eu
 
 repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-temporary=$(mktemp -d "${TMPDIR:-/tmp}/home-initramfs-test.XXXXXX")
-trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+configure=$repo/rootfs/configure.sh
+build_rootfs=$repo/build/build-rootfs.sh
 
-cat > "$temporary/init" <<'EOF'
-#!/bin/sh
-nlplug-findfs -p /sbin/mdev \
-	"$KOPT_root"
+fail() {
+	echo "initramfs UUID contract: $*" >&2
+	exit 1
+}
 
-if [ "$SINGLEMODE" = "yes" ]; then
-	sh
-fi
+contains() {
+	file=$1
+	text=$2
+	grep -Fq "$text" "$file" || fail "missing text in $file: $text"
+}
 
-mount -t ext4 "$KOPT_root" /sysroot
-EOF
-chmod 0755 "$temporary/init"
+not_contains() {
+	file=$1
+	text=$2
+	if grep -Fq "$text" "$file"; then
+		fail "unexpected text in $file: $text"
+	fi
+}
 
-sh "$repo/rootfs/patch-initramfs.sh" "$temporary/init"
-grep -q 'home-installer: resolve PARTUUID' "$temporary/init"
-grep -q 'PARTUUID=.*disk/by-partuuid' "$temporary/init"
-grep -q 'mount -t ext4 "\$KOPT_root" /sysroot' "$temporary/init"
+missing() {
+	[ ! -e "$1" ] || fail "obsolete path remains: $1"
+}
 
-cp "$temporary/init" "$temporary/init.before-second-patch"
-sh "$repo/rootfs/patch-initramfs.sh" "$temporary/init"
-cmp "$temporary/init.before-second-patch" "$temporary/init"
+contains "$configure" 'root=UUID=INSTALLER_ROOT_UUID'
+not_contains "$configure" 'PARTUUID'
+contains "$configure" 'ln -sf /usr/share/kernel-hooks.d/secureboot.hook'
+contains "$configure" 'disable_trigger=yes'
+not_contains "$configure" 'kernel_trigger_archive='
+not_contains "$configure" 'kernel-hooks.trigger'
+not_contains "$configure" 'patch-initramfs'
+not_contains "$configure" 'features.d/home.files'
+not_contains "$build_rootfs" 'patch-initramfs'
+missing "$repo/rootfs/patch-initramfs.sh"
 
-echo 'initramfs PARTUUID patch test passed'
+echo 'initramfs UUID contract tests passed'

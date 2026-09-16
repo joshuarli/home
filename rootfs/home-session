@@ -42,11 +42,66 @@ printf '%s\n' "home-session: starting dwl on $(tty)" >> "$logfile"
 renderer_file=/run/home-installer-qemu-renderer
 if [ -r "$renderer_file" ] && [ "$(tr -d '\n' < "$renderer_file")" = pixman ]; then
 	export WLR_RENDERER=pixman
-	# QEMU exposes both its default bochs framebuffer and virtio-gpu.  The
-	# software renderer cannot import the virtio DMA-BUF path, so use the
-	# bochs DRM node for this explicitly virtual-only branch.
-	export WLR_DRM_DEVICES=/dev/dri/card0
-	printf '%s\n' 'home-session: QEMU pixman renderer selected' >> "$logfile"
+	# QEMU's explicit std VGA device is the only virtual GPU in this branch.
+	# Resolve its DRM node through the bochs driver identity and, when udev
+	# provides one, the stable PCI by-path name.  Never assume that the kernel
+	# assigned this device card0; the physical Intel boot never sees this
+	# override.
+	find_qemu_drm_device() {
+		drm_device=
+		drm_matches=0
+		for candidate in /dev/dri/by-path/*-card; do
+			[ -L "$candidate" ] || continue
+			resolved=$(readlink -f "$candidate" 2>/dev/null || true)
+			case "$resolved" in
+				/dev/dri/card[0-9]*) ;;
+				*) continue ;;
+			esac
+			card=${resolved##*/}
+			driver_link=/sys/class/drm/$card/device/driver
+			[ -L "$driver_link" ] || continue
+			driver=$(readlink "$driver_link" 2>/dev/null || true)
+			[ "${driver##*/}" = bochs-drm ] || continue
+		drm_matches=$((drm_matches + 1))
+			# Use the resolved device node for wlroots; keep the by-path
+			# symlink as the identity that selected it.
+			drm_device=$resolved
+		done
+		if [ "$drm_matches" -eq 1 ]; then
+			printf '%s\n' "$drm_device"
+			return 0
+		fi
+		[ "$drm_matches" -eq 0 ] || return 1
+
+		# Some minimal udev setups do not create /dev/dri/by-path.  The
+		# sysfs driver link is still a stable identity for selecting the
+		# one intended device; the card name is derived, never assumed.
+		drm_device=
+		drm_matches=0
+		for driver_link in /sys/class/drm/card*/device/driver; do
+			[ -L "$driver_link" ] || continue
+			driver=$(readlink "$driver_link" 2>/dev/null || true)
+			[ "${driver##*/}" = bochs-drm ] || continue
+			card_path=${driver_link%/device/driver}
+			card=${card_path##*/}
+			candidate=/dev/dri/$card
+			[ -e "$candidate" ] || continue
+			drm_matches=$((drm_matches + 1))
+			drm_device=$candidate
+		done
+		[ "$drm_matches" -eq 1 ] || return 1
+		printf '%s\n' "$drm_device"
+	}
+
+	if qemu_drm_device=$(find_qemu_drm_device); then
+		export WLR_DRM_DEVICES=$qemu_drm_device
+		printf 'home-session: QEMU pixman renderer selected (%s)\n' \
+			"$qemu_drm_device" >> "$logfile"
+	else
+		printf '%s\n' 'home-session: could not uniquely identify QEMU bochs DRM device' \
+			>> "$logfile"
+		exec /bin/ash -l
+	fi
 fi
 
 # dwl v0.8 writes its status stream to the startup command's stdin.  Closing

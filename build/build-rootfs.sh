@@ -28,10 +28,11 @@ install -m 0755 /work/dwl "$rootfs/usr/bin/dwl"
 /work/configure-rootfs.sh "$rootfs"
 
 # apk --no-scripts is deliberate for the initial alternate-root install: it
-# prevents package scripts from being run against a possibly foreign root.
-# Recreate every required side effect here.  The font trigger is equivalent
-# to the package's normal cache update; kernel hooks are intentionally deferred
-# until the installer knows the target disk's PARTUUID and has /boot mounted.
+# prevents package scripts and kernel triggers from generating an EFI image
+# before the installer knows the target filesystem UUID and has mounted /boot.
+# Recreate every required side effect here.  The font trigger is equivalent to
+# the package's normal cache update; the installer later uses Alpine's package
+# trigger lifecycle after it substitutes the UUID and mounts the ESP.
 mkdir -p "$rootfs/proc"
 proc_mounted=0
 if mount -t proc proc "$rootfs/proc" 2>/dev/null; then
@@ -39,59 +40,61 @@ if mount -t proc proc "$rootfs/proc" 2>/dev/null; then
 fi
 chroot "$rootfs" /usr/bin/fc-cache -f
 
+cp /work/rootfs-smoke-assertions.sh "$rootfs/tmp/rootfs-smoke-assertions.sh"
 cat > "$rootfs/tmp/home-installer-smoke.sh" <<'CHROOT'
 set -eu
 
+. /tmp/rootfs-smoke-assertions.sh
+
 test -L /sbin/init
 test "$(readlink /sbin/init)" = /bin/busybox
-test -x /bin/fetch.sh
-test -x /usr/bin/home-login
-test -x /usr/bin/home-session
-test -x /etc/init.d/home-runtime
-test -x /etc/init.d/udev
-test -x /etc/init.d/udev-trigger
-test -x /etc/init.d/udev-settle
-test -x /etc/init.d/seatd
-test -x /usr/bin/dwl
-test -x /usr/bin/foot
-test -f /usr/share/fonts/dejavu/DejaVuSansMono.ttf
-test -f /usr/share/terminfo/f/foot || test -f /usr/share/terminfo/78/foot
-test -x /usr/bin/fc-match
-test -f /usr/lib/libwayland-server.so.0
-test -f /usr/lib/libinput.so.10
-test -f /usr/lib/libseat.so.1
-test -f /usr/lib/libEGL.so.1
-test -f /usr/lib/libgbm.so.1
-test -x /sbin/blkid
-# mdev is present only as an initramfs helper; eudev owns the installed
-# system's device events and no target OpenRC mdev service is enabled.
-test -L /sbin/mdev
-test "$(readlink /sbin/mdev)" = /bin/busybox
-/bin/busybox mdev --help >/dev/null 2>&1
-grep -q 'home-installer: resolve PARTUUID' /usr/share/mkinitfs/initramfs-init
-test -f /etc/kernel-hooks.d/50-secureboot.hook
-test -x /etc/kernel-hooks.d/60-home-fallback
-test -x /usr/libexec/home-installer/kernel-hooks.trigger
-grep -q 'root=PARTUUID=INSTALLER_ROOT_PARTUUID' /etc/kernel-hooks.d/secureboot.conf
-! grep -q 'root=LABEL=' /etc/kernel-hooks.d/secureboot.conf
-grep -q '^features="ata base cdrom ext4 home keymap kms mmc nvme raid scsi usb virtio"$' /etc/mkinitfs/mkinitfs.conf
+require_executable /bin/fetch.sh
+require_executable /usr/bin/home-login
+require_executable /usr/bin/home-session
+require_executable /etc/init.d/home-runtime
+require_executable /etc/init.d/udev
+require_executable /etc/init.d/udev-trigger
+require_executable /etc/init.d/udev-settle
+require_executable /etc/init.d/seatd
+require_executable /usr/bin/dwl
+require_executable /usr/bin/foot
+require_file /usr/share/fonts/dejavu/DejaVuSansMono.ttf
+if [ ! -f /usr/share/terminfo/f/foot ] && [ ! -f /usr/share/terminfo/78/foot ]; then
+	echo 'foot terminfo is missing' >&2
+	exit 1
+fi
+require_executable /usr/bin/fc-match
+require_file /usr/lib/libwayland-server.so.0
+require_file /usr/lib/libinput.so.10
+require_file /usr/lib/libseat.so.1
+require_file /usr/lib/libEGL.so.1
+require_file /usr/lib/libgbm.so.1
+require_executable /sbin/blkid
+require_no_match 'home-installer: resolve PARTUUID' /usr/share/mkinitfs/initramfs-init
+require_file /etc/kernel-hooks.d/50-secureboot.hook
+require_executable /etc/kernel-hooks.d/60-home-fallback
+require_symlink /etc/kernel-hooks.d/50-secureboot.hook /usr/share/kernel-hooks.d/secureboot.hook
+require_absent /usr/libexec/home-installer/kernel-hooks.trigger
+grep -q 'root=UUID=INSTALLER_ROOT_UUID' /etc/kernel-hooks.d/secureboot.conf
+require_no_match 'root=PARTUUID=' /etc/kernel-hooks.d/secureboot.conf
+require_no_match 'root=LABEL=' /etc/kernel-hooks.d/secureboot.conf
+grep -q '^features="ata base cdrom ext4 keymap kms mmc nvme raid scsi usb virtio"$' /etc/mkinitfs/mkinitfs.conf
 grep -q '^disable_trigger=yes$' /etc/mkinitfs/mkinitfs.conf
+require_absent /etc/mkinitfs/features.d/home.files
 kernel_release=$(find /lib/modules -mindepth 1 -maxdepth 1 -type d -name '*-lts' -print -quit | sed 's#.*/##')
 [ -n "$kernel_release" ]
 mkinitfs -q -o /tmp/home-installer-initramfs "$kernel_release"
 gzip -dc /tmp/home-installer-initramfs | cpio -t | grep -qx 'init'
-gzip -dc /tmp/home-installer-initramfs | cpio -t | grep -Eq '(^|/)sbin/blkid$'
-gzip -dc /tmp/home-installer-initramfs | cpio -t | grep -Eq '(^|/)sbin/mdev$'
-gzip -dc /tmp/home-installer-initramfs | cpio -t | grep -Eq '(^|/)lib/mdev/persistent-storage$'
+gzip -dc /tmp/home-installer-initramfs | cpio -t | grep -Eq '(^|/)sbin/nlplug-findfs$'
 rm -f /tmp/home-installer-initramfs
 test -L /etc/runlevels/sysinit/udev
 test -L /etc/runlevels/sysinit/udev-trigger
 test -L /etc/runlevels/sysinit/udev-settle
-! test -L /etc/runlevels/sysinit/mdev
-! test -L /etc/runlevels/sysinit/mdevd
-test -L /etc/runlevels/default/seatd
-test -L /etc/runlevels/default/home-runtime
-test -L /etc/runlevels/default/networking
+require_not_symlink /etc/runlevels/sysinit/mdev
+require_not_symlink /etc/runlevels/sysinit/mdevd
+require_symlink /etc/runlevels/default/seatd
+require_symlink /etc/runlevels/default/home-runtime
+require_symlink /etc/runlevels/default/networking
 
 if dwl -v 2>&1 | grep -q '^dwl 0.8'; then :; else
 	echo 'dwl version check failed' >&2
@@ -102,16 +105,16 @@ fc-match 'DejaVu Sans Mono' | grep -q 'DejaVuSansMono'
 
 for forbidden in xorg-server xwayland pulseaudio pipewire dbus polkit elogind \
 	mesa-va-gallium intel-media-driver libva-utils nano less; do
-	! apk info -e "$forbidden"
+	require_not_installed "$forbidden"
 done
-! test -e /boot/EFI/alpine/linux-lts.efi
-! test -e /usr/bin/qemu-x86_64
+require_absent /boot/EFI/alpine/linux-lts.efi
+require_absent /usr/bin/qemu-x86_64
 CHROOT
 
 chroot "$rootfs" /bin/sh -eux /tmp/home-installer-smoke.sh
 
 [ "$proc_mounted" -eq 0 ] || umount "$rootfs/proc"
-rm -f "$rootfs/tmp/home-installer-smoke.sh"
+rm -f "$rootfs/tmp/home-installer-smoke.sh" "$rootfs/tmp/rootfs-smoke-assertions.sh"
 rm -f "$rootfs/var/cache/apk"/*
 
 mkdir -p /work/out
@@ -139,9 +142,9 @@ awk -F: '
 	echo 'Home installer rootfs metadata'
 	echo 'architecture: x86_64'
 	echo 'install mode: apk --root --initdb --no-scripts'
-	echo 'deferred package side effects: secureboot kernel hook until installation; fontconfig cache recreated by fc-cache'
+	echo 'deferred package side effects: Alpine kernel-hook lifecycle after target UUID substitution and ESP mount; fontconfig cache recreated by fc-cache'
 	echo "direct package count: $(awk 'NF && $1 !~ /^#/ {count++} END {print count + 0}' /work/rootfs-packages.txt)"
-	echo 'dwl source: Codeberg upstream v0.8, stock config.mk/config.def.h, installed outside apk because Alpine 3.24.1 has no package'
+	echo 'dwl source: Codeberg upstream v0.8, Ctrl+Return foot binding and no wmenu-run binding, installed outside apk because Alpine 3.24.1 has no package'
 	echo "installed package count: $(awk -F: '$1 == "P" {count++} END {print count + 0}' "$installed_db")"
 	echo "installed filesystem allocated KiB (du -sk): $(du -sk "$rootfs" | awk '{print $1}')"
 	echo 'device-manager boundary: eudev is the installed runtime manager; BusyBox mdev is copied only into the initramfs/live installer'
