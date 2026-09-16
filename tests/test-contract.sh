@@ -57,12 +57,20 @@ contains "$repo/qemu/harness.py" current_disk_fingerprint
 contains "$repo/qemu/harness.py" source_sha256
 contains "$repo/installer/install.sh" INSTALLER_TEST_MODE
 contains "$repo/installer/install.sh" active_swap_disk
+contains "$repo/installer/install.sh" 'apk --root "$target" --initdb --no-scripts'
+contains "$repo/installer/install.sh" 'DHCP preflight failed; refusing to modify the target disk'
+contains "$repo/installer/install.sh" 'DNS preflight failed; refusing to modify the target disk'
+not_contains "$repo/installer/install.sh" 'rootfs.tar.gz'
+contains "$repo/iso/genapkovl-home-installer.sh" HOME_INSTALLER_ASSETS
+contains "$repo/rootfs/configure.sh" 'assets=${2:-/work}'
+contains "$repo/rootfs/repositories" 'https://dl-cdn.alpinelinux.org/alpine/v3.24/main'
 contains "$repo/README.md" 'make test'
 contains "$repo/README.md" 'make size'
 contains "$repo/Makefile" 'size: build'
 contains "$repo/Makefile" 'build/size-report.py'
 contains "$repo/build/size-report.py" 'iso-members.tsv'
-contains "$repo/build/size-report.py" 'rootfs-members.tsv'
+contains "$repo/build/size-report.py" 'overlay-members.tsv'
+contains "$repo/build/size-report.py" 'target-package-manifest.tsv'
 contains "$repo/qemu/harness.py" 'doas stat -c %s /boot/EFI/alpine/linux-lts.efi'
 
 if rg -q 'WLR_BACKENDS=headless' "$repo" \
@@ -72,6 +80,10 @@ if rg -q 'WLR_BACKENDS=headless' "$repo" \
 fi
 missing "$repo/dwl"
 missing "$repo/rootfs/patch-initramfs.sh"
+missing "$repo/build/build-rootfs.sh"
+missing "$repo/build/rootfs-smoke-assertions.sh"
+not_contains "$repo/Dockerfile" 'rootfs.tar.gz'
+not_contains "$repo/iso/mkimg.home_installer.sh" 'apks="alpine-base linux-lts'
 not_contains "$repo/Makefile" fetch.fixture
 not_contains "$repo/qemu/harness.py" fetch.fixture
 if grep -Eq '^nano$|^less$|^alsa-lib$|^intel-media-driver$|^libva-utils$' "$repo/rootfs-packages.txt"; then

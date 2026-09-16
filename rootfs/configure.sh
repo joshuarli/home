@@ -2,19 +2,28 @@
 set -eu
 
 rootfs=${1:?rootfs path is required}
+assets=${2:-/work}
+repositories=${3:-$assets/repositories}
 
-cp /etc/apk/repositories "$rootfs/etc/apk/repositories"
+[ -f "$repositories" ] || {
+	echo "repository file is missing: $repositories" >&2
+	exit 1
+}
+if [ "$repositories" != "$rootfs/etc/apk/repositories" ]; then
+	cp "$repositories" "$rootfs/etc/apk/repositories"
+fi
 /bin/busybox --install -s "$rootfs/bin"
 ln -sf /bin/busybox "$rootfs/sbin/init"
 
-install -m 0755 /work/fetch.sh "$rootfs/bin/fetch.sh"
-install -m 0755 /work/home-login "$rootfs/usr/bin/home-login"
-install -m 0755 /work/home-session "$rootfs/usr/bin/home-session"
-install -m 0755 /work/home-runtime.initd "$rootfs/etc/init.d/home-runtime"
+install -m 0755 "$assets/fetch.sh" "$rootfs/bin/fetch.sh"
+install -m 0755 "$assets/dwl" "$rootfs/usr/bin/dwl"
+install -m 0755 "$assets/home-login" "$rootfs/usr/bin/home-login"
+install -m 0755 "$assets/home-session" "$rootfs/usr/bin/home-session"
+install -m 0755 "$assets/home-runtime.initd" "$rootfs/etc/init.d/home-runtime"
 
 home="$rootfs/home/josh"
 mkdir -p "$home/.config/foot"
-install -m 0644 /work/foot.ini "$home/.config/foot/foot.ini"
+install -m 0644 "$assets/foot.ini" "$home/.config/foot/foot.ini"
 chown -R 1000:1000 "$home"
 
 next_gid() {

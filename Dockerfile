@@ -30,24 +30,23 @@ RUN set -eux; \
     make; \
     install -m 0755 dwl /work/dwl
 
-FROM alpine:3.24.1 AS rootfs
+FROM alpine:3.24.1 AS assets
 
-RUN printf '%s\n' 'https://dl-cdn.alpinelinux.org/alpine/v3.24/community' >> /etc/apk/repositories && \
-    apk add --no-cache apk-tools-static binutils lddtree kmod tar gzip
-COPY --from=upstream-dwl-build /work/dwl /work/dwl
-COPY rootfs-packages.txt /work/rootfs-packages.txt
-COPY rootfs/fetch.sh /work/fetch.sh
-COPY rootfs/configure.sh /work/configure-rootfs.sh
-COPY rootfs/home-login /work/home-login
-COPY rootfs/home-session /work/home-session
-COPY rootfs/home-runtime.initd /work/home-runtime.initd
-COPY rootfs/foot.ini /work/foot.ini
-COPY build/build-rootfs.sh /work/build-rootfs.sh
-COPY build/rootfs-smoke-assertions.sh /work/rootfs-smoke-assertions.sh
-RUN chmod +x /work/configure-rootfs.sh /work/build-rootfs.sh \
-        /work/rootfs-smoke-assertions.sh \
-        /work/home-login /work/home-session /work/home-runtime.initd && \
-    /work/build-rootfs.sh
+# The ISO carries only the installer assets. The target package closure is
+# resolved by apk after the live network preflight, so the target filesystem
+# never enters the image build or the ISO.
+COPY --from=upstream-dwl-build /work/dwl /work/assets/dwl
+COPY rootfs-packages.txt /work/assets/rootfs-packages.txt
+COPY rootfs/repositories /work/assets/repositories
+COPY rootfs/fetch.sh /work/assets/fetch.sh
+COPY rootfs/configure.sh /work/assets/configure.sh
+COPY rootfs/home-login /work/assets/home-login
+COPY rootfs/home-session /work/assets/home-session
+COPY rootfs/home-runtime.initd /work/assets/home-runtime.initd
+COPY rootfs/foot.ini /work/assets/foot.ini
+RUN chmod +x /work/assets/dwl /work/assets/configure.sh \
+        /work/assets/fetch.sh /work/assets/home-login \
+        /work/assets/home-session /work/assets/home-runtime.initd
 
 FROM alpine:3.24.1 AS iso-tools
 
@@ -64,7 +63,7 @@ RUN tag=$(cut -d. -f1,2 /etc/alpine-release) && \
 
 FROM iso-tools AS iso
 
-COPY --from=rootfs /work/out/rootfs.tar.gz /work/rootfs.tar.gz
+COPY --from=assets /work/assets /work/assets
 COPY --from=aports /work/aports /work/aports
 COPY iso /work/iso
 COPY build/build-iso.sh /work/build-iso.sh
@@ -87,5 +86,4 @@ RUN chmod +x /work/installer/install.sh && \
 
 FROM scratch AS artifact
 COPY --from=patched /work/out/home-installer-patched.iso /home-installer.iso
-COPY --from=rootfs /work/out/rootfs-metadata.txt /rootfs-metadata.txt
 COPY --from=patched /work/out/iso-metadata.txt /iso-metadata.txt

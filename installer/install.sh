@@ -1,7 +1,10 @@
 #!/bin/sh
 set -eu
 
-archive=/root/home-installer/rootfs.tar.gz
+installer_assets=/root/home-installer
+configure_asset=$installer_assets/configure.sh
+package_manifest=$installer_assets/rootfs-packages.txt
+repository_asset=$installer_assets/repositories
 target=/mnt/home-installer
 efi_root=/sys/firmware/efi
 sys_block_root=/sys/block
@@ -723,16 +726,23 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-for command_name in awk blkid blockdev chroot cmp cp efibootmgr findmnt grep \
+for command_name in apk awk blkid blockdev chroot cmp cp efibootmgr findmnt grep \
 	ip lsblk mkfs.ext4 mkfs.vfat mktemp mkswap mount nslookup od partx \
-	readlink sed sfdisk stat stty tar timeout umount udhcpc wipefs \
+	readlink sed sfdisk stat stty timeout umount udhcpc wipefs \
 	swapon wpa_passphrase wpa_supplicant modprobe; do
 	require_command "$command_name"
 done
 
 [ "$(id -u)" -eq 0 ] || die 'run this installer as root'
 [ -d "$efi_root" ] || die 'this installer requires UEFI mode'
-[ -f "$archive" ] || die 'embedded rootfs archive is missing'
+[ -f "$configure_asset" ] && [ -x "$configure_asset" ] ||
+	die 'installer configuration asset is missing or not executable'
+[ -f "$package_manifest" ] || die 'target package manifest is missing'
+[ -s "$repository_asset" ] || die 'target repository file is missing'
+[ -x "$installer_assets/dwl" ] || die 'installed compositor asset is missing or not executable'
+[ -x "$installer_assets/fetch.sh" ] || die 'diagnostic asset is missing or not executable'
+grep -Eq '^https://dl-cdn\.alpinelinux\.org/alpine/v3\.24/(main|community)$' \
+	"$repository_asset" || die 'target repositories are not the pinned Alpine 3.24 repositories'
 
 # Unattended disk selection is an authenticated QEMU-test input, not a
 # general environment override. A physical invocation must always select and
@@ -741,8 +751,13 @@ done
 qemu_seed_file=/sys/firmware/qemu_fw_cfg/by_name/opt/home-installer-test/raw
 if [ "$is_qemu" = 1 ]; then
 	[ "${INSTALLER_TEST_MODE-}" = 1 ] || die 'QEMU mode requires the explicit test mode input'
-	[ -r "$qemu_seed_file" ] && [ "$(cat "$qemu_seed_file")" = home-installer-qemu-v1 ] ||
-		die 'QEMU mode requires the explicit installer fw_cfg test seed'
+	[ -r "$qemu_seed_file" ] || die 'QEMU mode requires the explicit installer fw_cfg test seed'
+	qemu_seed_value=$(cat "$qemu_seed_file")
+	case "$qemu_seed_value" in
+		home-installer-qemu-v1) ;;
+		home-installer-qemu-no-network-v1) ;;
+		*) die 'QEMU mode requires the explicit installer fw_cfg test seed' ;;
+	esac
 	qemu_test_mode=1
 else
 	[ -z "${INSTALLER_DISK-}" ] || die 'INSTALLER_DISK is only accepted by the explicit QEMU test mode'
@@ -828,10 +843,10 @@ if [ "$network_ready" -eq 1 ]; then
 	if timeout 5 nslookup dl-cdn.alpinelinux.org >/dev/null 2>&1; then
 		echo 'DNS preflight passed.'
 	else
-		echo 'WARNING: DNS preflight failed; the embedded installation payload is still available.' >&2
+		die 'DNS preflight failed; refusing to modify the target disk'
 	fi
 else
-	echo 'WARNING: DHCP did not complete; continuing with the embedded payload and persisted network configuration.' >&2
+	die 'DHCP preflight failed; refusing to modify the target disk'
 fi
 
 discover_installer_media_disks
@@ -890,7 +905,23 @@ mkdir -p "$target/boot"
 mount "$boot_partition" "$target/boot"
 boot_mounted=1
 
-tar -xzf "$archive" -C "$target"
+mkdir -p "$target/etc/apk/keys"
+cp "$repository_asset" "$target/etc/apk/repositories"
+cp -a /etc/apk/keys/. "$target/etc/apk/keys/"
+target_packages=$(awk 'NF && $1 !~ /^#/ {print $1}' "$package_manifest" | tr '\n' ' ')
+[ -n "$target_packages" ] || die 'target package manifest is empty'
+apk --root "$target" --initdb --no-scripts \
+	--keys-dir "$target/etc/apk/keys" \
+	--repositories-file "$target/etc/apk/repositories" \
+	add --no-cache $target_packages
+
+# The package closure is installed only after the network and target layout
+# are valid. configure.sh supplies the machine-independent account, session,
+# service and kernel-hook configuration; package scripts remain deferred until
+# the UUID is substituted and /boot is verified below.
+sh "$configure_asset" "$target" "$installer_assets" "$repository_asset"
+chroot "$target" /usr/bin/fc-cache -f
+rm -rf "$target/var/cache/apk"/*
 
 root_uuid=$(blkid -s UUID -o value "$root_partition")
 boot_uuid=$(blkid -s UUID -o value "$boot_partition")
@@ -940,7 +971,7 @@ verify_target_boot_mount
 # Reinstall the packaged kernel so apk runs Alpine's real kernel-hooks
 # trigger. This is intentionally deferred until the target UUID is in the
 # command line and the real ESP is mounted at /boot; no private trigger copy
-# is needed in the prepared rootfs.
+# is needed in the network-installed target.
 chroot "$target" /sbin/apk --no-cache fix linux-lts
 
 canonical_efi="$target/boot/EFI/alpine/linux-lts.efi"

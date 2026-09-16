@@ -37,13 +37,12 @@ FINGERPRINT_VERSION = 1
 FINGERPRINT_INPUTS = (
     "Dockerfile",
     "rootfs-packages.txt",
-    "build/build-rootfs.sh",
-    "build/rootfs-smoke-assertions.sh",
     "build/build-iso.sh",
     "installer/install.sh",
     "iso/mkimg.home_installer.sh",
     "iso/genapkovl-home-installer.sh",
     "rootfs/configure.sh",
+    "rootfs/repositories",
     "rootfs/fetch.sh",
     "rootfs/home-login",
     "rootfs/home-session",
@@ -885,6 +884,7 @@ class VM:
     network: bool = True
     network_unavailable: bool = False
     test_seed: bool = False
+    test_seed_value: str = "home-installer-qemu-v1"
     qemu_renderer: bool = True
     display: str = "none"
     no_reboot: bool = False
@@ -956,7 +956,7 @@ class VM:
             args.extend(
                 [
                     "-fw_cfg",
-                    "name=opt/home-installer-test,string=home-installer-qemu-v1",
+                    f"name=opt/home-installer-test,string={self.test_seed_value}",
                     "-fw_cfg",
                     "name=opt/home-secure-boot,string=disabled",
                 ]
@@ -1511,6 +1511,7 @@ def write_acceptance_metadata(
         f"steady_state_processes: {session_facts.get('fact_processes', 'unknown')}",
         f"idle_mem_available_kib: {session_facts.get('fact_mem_available_kib', 'unknown')}",
         f"enabled_services: {target_metrics.get('services', 'unknown')}",
+        f"target_world_packages_verified: {target_metrics.get('target_world_count', 'unknown')}",
         f"installed_efi_bytes: {target_metrics.get('efi_bytes', 'unknown')}",
         f"installed_root_used_kib: {target_metrics.get('root_used_kib', 'unknown')}",
         f"wayland_socket: {session_facts.get('fact_wayland_socket', 'unknown')}",
@@ -1752,6 +1753,7 @@ def make_vm(
     network: bool = True,
     network_unavailable: bool = False,
     test_seed: bool = False,
+    test_seed_value: str = "home-installer-qemu-v1",
     qemu_renderer: bool = True,
     display: str = "none",
     no_reboot: bool = False,
@@ -1767,6 +1769,7 @@ def make_vm(
         network=network,
         network_unavailable=network_unavailable,
         test_seed=test_seed,
+        test_seed_value=test_seed_value,
         qemu_renderer=qemu_renderer,
         display=display,
         no_reboot=no_reboot,
@@ -1809,6 +1812,42 @@ def installed_session_stage(
     return vm
 
 
+def assert_network_preflight_required(
+    paths: Paths, pair: FirmwarePair, iso: Path, disk: Path
+) -> None:
+    """Prove a failed network preflight powers off before writing the disk."""
+
+    qemu_disk_create(paths, disk)
+    before = sha256_file(disk)
+    vars_path = copy_vars(pair.vars_template, paths.output("network-failure-vars.fd"), paths)
+    vm = make_vm(
+        paths,
+        pair,
+        disk,
+        vars_path,
+        "network-failure",
+        iso=iso,
+        network=True,
+        network_unavailable=True,
+        test_seed=True,
+        test_seed_value="home-installer-qemu-no-network-v1",
+    )
+    try:
+        vm.start()
+        vm.wait_for_exit(180)
+        serial = vm.serial_log.read_text(errors="replace") if vm.serial_log else ""
+        if "DHCP preflight failed; refusing to modify the target disk" not in serial:
+            fail(f"network failure VM did not fail closed before installation; see {vm.serial_log}")
+        if sha256_file(disk) != before:
+            fail("network preflight failure modified the disposable target disk")
+    except BaseException as primary:
+        cleanup_after_failure(primary, "closing network failure VM", vm.close)
+        raise
+    else:
+        vm.close()
+    say("network preflight failure rejected before any target-disk write")
+
+
 def test_installer(iso: Path) -> None:
     paths = Paths.from_environment()
     # A failed attempt must never leave a prior green report or fingerprint
@@ -1818,6 +1857,7 @@ def test_installer(iso: Path) -> None:
     pair = firmware_pair()
     fingerprint = fingerprint_payload(iso, pair)
     disk = paths.disk
+    assert_network_preflight_required(paths, pair, iso, disk)
     qemu_disk_create(paths, disk)
     installer_vars = copy_vars(pair.vars_template, paths.output("installer-vars.fd"), paths)
     vm = make_vm(paths, pair, disk, installer_vars, "installer", iso=iso, test_seed=True)
@@ -1856,14 +1896,25 @@ def test_installer(iso: Path) -> None:
             "df_output=$(df -kP /) || exit $?\n"
             "root_used_kib=$(printf '%s\\n' \"$df_output\" | awk 'END {print $3}') || exit $?\n"
             "[ -n \"$root_used_kib\" ] || exit 1\n"
+            "world_count=0\n"
+            "world_missing=0\n"
+            "while IFS= read -r package; do\n"
+            "    [ -n \"$package\" ] || continue\n"
+            "    world_count=$((world_count + 1))\n"
+            "    /sbin/apk info -e \"$package\" >/dev/null 2>&1 || world_missing=$((world_missing + 1))\n"
+            "done < /etc/apk/world\n"
+            "[ \"$world_count\" -gt 0 ] && [ \"$world_missing\" -eq 0 ] || exit 1\n"
             "services=$(rc-status --all 2>/dev/null) || exit $?\n"
             "services=$(printf '%s' \"$services\" | tr '\\n' ' ') || exit $?\n"
             "printf 'efi_bytes=%s\\n' \"$efi_bytes\"\n"
             "printf 'root_used_kib=%s\\n' \"$root_used_kib\"\n"
+            "printf 'target_world_count=%s\\n' \"$world_count\"\n"
             "printf 'services=%s\\n' \"$services\"",
         ).output
         for line in metric_output.splitlines():
-            if "=" in line and line.split("=", 1)[0] in {"efi_bytes", "root_used_kib", "services"}:
+            if "=" in line and line.split("=", 1)[0] in {
+                "efi_bytes", "root_used_kib", "target_world_count", "services"
+            }:
                 name, value = line.split("=", 1)
                 target_metrics[name] = value.strip()
         screenshot = paths.output("installed-terminal.ppm")

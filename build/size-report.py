@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Generate a post-build size report for the finished installer ISO.
+"""Generate a post-build size report for the network-first installer ISO.
 
-The ISO contains compressed payloads for two different systems: the live
-installer and the prepared installed target.  This report keeps those
-measurements separate.  It uses the host's bsdtar (available on macOS) to
-enumerate the ISO, then streams the nested prepared rootfs archive without
-extracting it to disk.
+The ISO carries a bootable Alpine live environment and a small installer
+overlay. The installed target rootfs is deliberately not embedded: after
+network preflight, the installer installs its direct package manifest from
+Alpine repositories. This report keeps those measurements distinct.
+
+``bsdtar`` is used for ISO 9660 access because it is available on macOS. The
+nested gzip overlay is streamed through :mod:`tarfile`, never extracted.
 """
 
 from __future__ import annotations
@@ -16,17 +18,18 @@ from dataclasses import dataclass
 import hashlib
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import sys
 import tarfile
-from typing import BinaryIO, Iterable, TextIO
+from typing import BinaryIO, Iterable
 
 
 ISO_SECTOR_BYTES = 2048
 OVERLAY_MEMBER = "home-installer.apkovl.tar.gz"
-ROOTFS_MEMBER = "root/home-installer/rootfs.tar.gz"
+TARGET_PACKAGE_MANIFEST_MEMBER = "root/home-installer/rootfs-packages.txt"
+REMOVED_ROOTFS_MEMBER = "root/home-installer/rootfs.tar.gz"
+MAX_PACKAGE_MANIFEST_BYTES = 1024 * 1024
 
 
 class SizeReportError(RuntimeError):
@@ -42,13 +45,9 @@ class ArchiveEntry:
 
 
 @dataclass(frozen=True)
-class PackageRow:
-    name: str
-    version: str
-    architecture: str
-    installed_bytes: int
-    package_bytes: int
-    dependencies: str
+class PackageManifestRow:
+    line_number: int
+    package: str
 
 
 def human_bytes(value: int) -> str:
@@ -73,10 +72,7 @@ def require_regular_file(path: Path, description: str) -> None:
 
 
 def run_bsdtar(
-    bsdtar: str,
-    arguments: list[str],
-    *,
-    iso: Path,
+    bsdtar: str, arguments: list[str], *, iso: Path
 ) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
     environment["LC_ALL"] = "C"
@@ -101,7 +97,9 @@ def parse_bsdtar_listing(listing: str) -> list[ArchiveEntry]:
     for line_number, line in enumerate(listing.splitlines(), start=1):
         fields = line.split(maxsplit=8)
         if len(fields) < 9:
-            raise SizeReportError(f"cannot parse bsdtar listing line {line_number}: {line!r}")
+            raise SizeReportError(
+                f"cannot parse bsdtar listing line {line_number}: {line!r}"
+            )
         mode = fields[0]
         try:
             logical_bytes = int(fields[4])
@@ -153,82 +151,76 @@ def category_entries(entries: Iterable[ArchiveEntry]) -> dict[str, list[ArchiveE
     return dict(categories)
 
 
-def parse_metadata_values(path: Path) -> dict[str, int]:
-    values: dict[str, int] = {}
-    patterns = {
-        "rootfs_archive_bytes": r"^rootfs archive bytes: (\d+)$",
-        "iso_bytes": r"^iso bytes: (\d+)$",
-        "installed_root_kib": r"^installed filesystem allocated KiB \(du -sk\): (\d+)$",
-    }
-    for line in path.read_text(encoding="utf-8").splitlines():
-        for key, pattern in patterns.items():
-            match = re.match(pattern, line)
-            if match:
-                values[key] = int(match.group(1))
-    return values
-
-
-def parse_package_rows(path: Path) -> list[PackageRow]:
-    rows: list[PackageRow] = []
-    in_packages = False
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.startswith("resolved packages ("):
-            in_packages = True
-            continue
-        if line.startswith("largest installed package contributors ("):
-            break
-        if not in_packages or not line:
-            continue
-        fields = line.split("\t", 5)
-        if len(fields) != 6:
-            raise SizeReportError(f"cannot parse package metadata line: {line!r}")
-        try:
-            rows.append(
-                PackageRow(
-                    name=fields[0],
-                    version=fields[1],
-                    architecture=fields[2],
-                    installed_bytes=int(fields[3]),
-                    package_bytes=int(fields[4]),
-                    dependencies=fields[5],
-                )
-            )
-        except ValueError as error:
-            raise SizeReportError(f"cannot parse package sizes: {line!r}") from error
-    if not rows:
-        raise SizeReportError(f"package table is missing or empty: {path}")
-    return rows
-
-
 def clean_tar_path(path: str) -> str:
     while path.startswith("./"):
         path = path[2:]
     return path or "."
 
 
-def rootfs_class(path: str) -> str:
-    if path.startswith(("lib/firmware/", "usr/lib/firmware/")):
-        return "firmware"
-    if path.startswith(("lib/modules/", "usr/lib/modules/")):
-        return "kernel modules"
-    if path.startswith(("boot/", "usr/lib/kernel/")):
-        return "kernel/boot files"
-    if path.startswith("usr/share/fonts/"):
-        return "fonts"
-    if path.startswith(("usr/lib/llvm", "usr/lib/libLLVM")):
-        return "LLVM runtime"
-    return "other"
+def parse_iso_metadata(path: Path) -> dict[str, str]:
+    """Read the simple ``label: value`` ISO metadata contract safely."""
+
+    values: dict[str, str] = {}
+    for line_number, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        if not line or line.startswith("#") or ": " not in line:
+            continue
+        label, value = line.split(": ", 1)
+        if not label or not value:
+            continue
+        if label in values:
+            raise SizeReportError(
+                f"duplicate ISO metadata label {label!r} on line {line_number}: {path}"
+            )
+        values[label] = value
+    return values
 
 
-def analyze_rootfs_tar(stream: BinaryIO) -> dict[str, object]:
+def parse_metadata_iso_bytes(metadata: dict[str, str]) -> int:
+    value = metadata.get("iso bytes")
+    if value is None:
+        raise SizeReportError("ISO metadata is missing 'iso bytes'")
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise SizeReportError(f"invalid ISO metadata iso bytes: {value!r}") from error
+    if parsed < 0:
+        raise SizeReportError(f"invalid ISO metadata iso bytes: {value!r}")
+    return parsed
+
+
+def parse_target_package_manifest(data: bytes) -> list[PackageManifestRow]:
+    """Parse the direct target package list embedded in the installer overlay."""
+
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise SizeReportError("target package manifest is not valid UTF-8") from error
+
+    rows: list[PackageManifestRow] = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        package = line.strip()
+        if not package or package.startswith("#"):
+            continue
+        if any(character.isspace() for character in package):
+            raise SizeReportError(
+                f"target package manifest has multiple fields on line {line_number}: {line!r}"
+            )
+        rows.append(PackageManifestRow(line_number, package))
+    if not rows:
+        raise SizeReportError("target package manifest is missing or empty")
+    return rows
+
+
+def analyze_overlay_tar(stream: BinaryIO) -> dict[str, object]:
+    """Enumerate the nested overlay and read its small package manifest."""
+
     categories: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])
-    classes: dict[str, int] = defaultdict(int)
     members: list[tuple[str, str, int, str]] = []
-    files: list[tuple[int, str]] = []
-    regular_bytes = 0
-    regular_files = 0
-    directories = 0
-    symlinks = 0
+    assets: list[tuple[str, str, int]] = []
+    regular_bytes = regular_files = directories = symlinks = 0
+    package_manifest_data: bytes | None = None
 
     with tarfile.open(fileobj=stream, mode="r|gz") as archive:
         for member in archive:
@@ -236,26 +228,20 @@ def analyze_rootfs_tar(stream: BinaryIO) -> dict[str, object]:
             if path == ".":
                 continue
             if member.isfile():
-                kind = "file"
-                size = member.size
+                kind, size = "file", member.size
                 regular_bytes += size
                 regular_files += 1
-                files.append((size, path))
-                classes[rootfs_class(path)] += size
             elif member.isdir():
-                kind = "directory"
-                size = 0
+                kind, size = "directory", 0
                 directories += 1
             elif member.issym():
-                kind = "symlink"
-                size = 0
+                kind, size = "symlink", 0
                 symlinks += 1
             elif member.islnk():
-                kind = "hardlink"
-                size = 0
+                kind, size = "hardlink", 0
             else:
-                kind = "other"
-                size = 0
+                kind, size = "other", 0
+
             category = top_level(path)
             category_row = categories[category]
             category_row[0] += size
@@ -263,12 +249,58 @@ def analyze_rootfs_tar(stream: BinaryIO) -> dict[str, object]:
             if kind == "file":
                 category_row[2] += 1
             members.append((path, kind, size, category))
+            if path.startswith("root/home-installer/") and kind != "directory":
+                assets.append((path, kind, size))
 
+            if path == REMOVED_ROOTFS_MEMBER:
+                raise SizeReportError(
+                    "installer overlay still contains the removed embedded target rootfs: "
+                    f"{REMOVED_ROOTFS_MEMBER}"
+                )
+            if path != TARGET_PACKAGE_MANIFEST_MEMBER:
+                continue
+            if package_manifest_data is not None:
+                raise SizeReportError(
+                    "installer overlay contains duplicate package manifests: "
+                    f"{TARGET_PACKAGE_MANIFEST_MEMBER}"
+                )
+            if not member.isfile():
+                raise SizeReportError(
+                    "target package manifest is not a regular file: "
+                    f"{TARGET_PACKAGE_MANIFEST_MEMBER}"
+                )
+            if member.size > MAX_PACKAGE_MANIFEST_BYTES:
+                raise SizeReportError(
+                    "target package manifest exceeds the safe size limit "
+                    f"({MAX_PACKAGE_MANIFEST_BYTES} bytes)"
+                )
+            package_stream = archive.extractfile(member)
+            if package_stream is None:
+                raise SizeReportError(
+                    "cannot read target package manifest: "
+                    f"{TARGET_PACKAGE_MANIFEST_MEMBER}"
+                )
+            try:
+                package_manifest_data = package_stream.read(MAX_PACKAGE_MANIFEST_BYTES + 1)
+            finally:
+                package_stream.close()
+            if len(package_manifest_data) > MAX_PACKAGE_MANIFEST_BYTES:
+                raise SizeReportError(
+                    "target package manifest exceeds the safe size limit "
+                    f"({MAX_PACKAGE_MANIFEST_BYTES} bytes)"
+                )
+
+    if package_manifest_data is None:
+        raise SizeReportError(
+            "installer overlay is missing target package manifest: "
+            f"{TARGET_PACKAGE_MANIFEST_MEMBER}"
+        )
     return {
+        "assets": assets,
         "categories": dict(categories),
-        "classes": dict(classes),
         "members": members,
-        "files": files,
+        "package_manifest_bytes": package_manifest_data,
+        "package_manifest": parse_target_package_manifest(package_manifest_data),
         "regular_bytes": regular_bytes,
         "regular_files": regular_files,
         "directories": directories,
@@ -276,40 +308,36 @@ def analyze_rootfs_tar(stream: BinaryIO) -> dict[str, object]:
     }
 
 
-def analyze_embedded_rootfs(bsdtar: str, iso: Path) -> dict[str, object]:
+def analyze_embedded_overlay(bsdtar: str, iso: Path) -> dict[str, object]:
+    """Stream the overlay from the ISO into :func:`analyze_overlay_tar`."""
+
     environment = os.environ.copy()
     environment["LC_ALL"] = "C"
-    outer = subprocess.Popen(
+    process = subprocess.Popen(
         [bsdtar, "-xOf", str(iso), OVERLAY_MEMBER],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=environment,
     )
-    assert outer.stdout is not None
-    found: dict[str, object] | None = None
-    embedded_bytes = 0
+    assert process.stdout is not None
+    analysis_error: Exception | None = None
+    result: dict[str, object] | None = None
     try:
-        with tarfile.open(fileobj=outer.stdout, mode="r|gz") as overlay:
-            for member in overlay:
-                if member.name != ROOTFS_MEMBER or found is not None:
-                    continue
-                embedded_bytes = member.size
-                rootfs_stream = overlay.extractfile(member)
-                if rootfs_stream is None:
-                    raise SizeReportError(f"cannot read embedded member: {ROOTFS_MEMBER}")
-                found = analyze_rootfs_tar(rootfs_stream)
-                rootfs_stream.close()
+        result = analyze_overlay_tar(process.stdout)
+    except Exception as error:
+        analysis_error = error
     finally:
-        outer.stdout.close()
-    stderr = outer.stderr.read().decode("utf-8", errors="replace") if outer.stderr else ""
-    returncode = outer.wait()
+        process.stdout.close()
+
+    stderr = process.stderr.read().decode("utf-8", errors="replace") if process.stderr else ""
+    returncode = process.wait()
+    if analysis_error is not None:
+        raise analysis_error
     if returncode != 0:
         detail = stderr.strip() or "no bsdtar diagnostic"
         raise SizeReportError(f"cannot extract {OVERLAY_MEMBER}: {detail}")
-    if found is None:
-        raise SizeReportError(f"embedded member is missing: {ROOTFS_MEMBER}")
-    found["archive_bytes"] = embedded_bytes
-    return found
+    assert result is not None
+    return result
 
 
 def sha256_file(path: Path) -> str:
@@ -318,6 +346,10 @@ def sha256_file(path: Path) -> str:
         while chunk := stream.read(1024 * 1024):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 def write_iso_members(path: Path, entries: Iterable[ArchiveEntry]) -> None:
@@ -329,30 +361,19 @@ def write_iso_members(path: Path, entries: Iterable[ArchiveEntry]) -> None:
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
-def write_rootfs_members(path: Path, members: Iterable[tuple[str, str, int, str]]) -> None:
+def write_overlay_members(path: Path, members: Iterable[tuple[str, str, int, str]]) -> None:
     rows = ["kind\tbytes\ttop_level\tpath"]
     for member_path, kind, size, category in sorted(members):
         rows.append(f"{kind}\t{size}\t{category}\t{member_path}")
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
-def write_packages(path: Path, packages: Iterable[PackageRow]) -> None:
-    rows = [
-        "name\tversion\tarchitecture\tinstalled_bytes\tpackage_bytes\tdependencies"
-    ]
-    for package in sorted(packages, key=lambda item: (-item.installed_bytes, item.name)):
-        rows.append(
-            "\t".join(
-                (
-                    package.name,
-                    package.version,
-                    package.architecture,
-                    str(package.installed_bytes),
-                    str(package.package_bytes),
-                    package.dependencies,
-                )
-            )
-        )
+def write_target_package_manifest(
+    path: Path, packages: Iterable[PackageManifestRow]
+) -> None:
+    rows = ["line\tpackage"]
+    for package in packages:
+        rows.append(f"{package.line_number}\t{package.package}")
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
@@ -385,34 +406,54 @@ def format_iso_section(entries: list[ArchiveEntry], iso_bytes: int) -> list[str]
     return lines
 
 
-def format_rootfs_section(rootfs: dict[str, object], metadata: dict[str, int]) -> list[str]:
-    regular_bytes = int(rootfs["regular_bytes"])
+def format_live_payloads(entries: list[ArchiveEntry]) -> list[str]:
+    apk_entries = [
+        entry for entry in entries if entry.kind == "file" and entry.path.startswith("apks/")
+    ]
+    modloop_entries = [
+        entry
+        for entry in entries
+        if entry.kind == "file" and entry.path.startswith("boot/modloop")
+    ]
+    apk_bytes = sum(entry.logical_bytes for entry in apk_entries)
+    modloop_bytes = sum(entry.logical_bytes for entry in modloop_entries)
+    return [
+        "Live installer payloads",
+        f"  live APK repository (apks/): {apk_bytes} bytes ({human_bytes(apk_bytes)}); "
+        f"{len(apk_entries)} files",
+        f"  live kernel modloop (boot/modloop*): {modloop_bytes} bytes ({human_bytes(modloop_bytes)}); "
+        f"{len(modloop_entries)} files",
+    ]
+
+
+def format_overlay_section(overlay: dict[str, object], overlay_bytes: int) -> list[str]:
+    regular_bytes = int(overlay["regular_bytes"])
     lines = [
-        "Embedded prepared rootfs archive",
-        f"  compressed archive member: {metadata['rootfs_archive_bytes']} bytes ({human_bytes(metadata['rootfs_archive_bytes'])})",
+        "Installer overlay",
+        f"  compressed ISO member: {overlay_bytes} bytes ({human_bytes(overlay_bytes)})",
         f"  uncompressed regular-file bytes: {regular_bytes} ({human_bytes(regular_bytes)})",
-        f"  archive compression ratio: {metadata['rootfs_archive_bytes'] / regular_bytes:.3f}",
-        f"  regular files: {rootfs['regular_files']}; directories: {rootfs['directories']}; symlinks: {rootfs['symlinks']}",
-        f"  installed filesystem allocation from build metadata: {metadata.get('installed_root_kib', 0) * 1024} bytes ({human_bytes(metadata.get('installed_root_kib', 0) * 1024)})",
+        f"  regular files: {overlay['regular_files']}; directories: {overlay['directories']}; symlinks: {overlay['symlinks']}",
         "  top-level paths (regular-file bytes)",
         "    path                                      bytes             files",
     ]
-    categories = rootfs["categories"]
+    categories = overlay["categories"]
     assert isinstance(categories, dict)
     for category, values in sorted(categories.items(), key=lambda item: item[1][0], reverse=True):
         lines.append(
             f"    {category:<42} {values[0]:>14} ({human_bytes(values[0]):>12}) {values[2]:>10}"
         )
-    lines.extend(
-        (
-            "  selected file classes (regular-file bytes; classes are mutually exclusive)",
-            "    class                                      bytes",
-        )
-    )
-    classes = rootfs["classes"]
-    assert isinstance(classes, dict)
-    for category, size in sorted(classes.items(), key=lambda item: item[1], reverse=True):
-        lines.append(f"    {category:<42} {size:>14} ({human_bytes(size):>12})")
+    return lines
+
+
+def format_overlay_assets(overlay: dict[str, object]) -> list[str]:
+    assets = overlay["assets"]
+    assert isinstance(assets, list)
+    lines = [
+        "Explicit installer assets (root/home-installer)",
+        "  bytes             kind       path",
+    ]
+    for path, kind, size in sorted(assets, key=lambda item: item[0]):
+        lines.append(f"  {size:>14} {kind:<10} {path}")
     return lines
 
 
@@ -428,42 +469,30 @@ def format_largest_iso(entries: list[ArchiveEntry], iso_bytes: int) -> list[str]
     return lines
 
 
-def format_largest_rootfs(rootfs: dict[str, object]) -> list[str]:
-    lines = ["Largest embedded rootfs files", "  bytes             path"]
-    files = rootfs["files"]
-    assert isinstance(files, list)
-    for size, path in sorted(files, key=lambda item: (-item[0], item[1]))[:25]:
-        lines.append(f"  {size:>14} ({human_bytes(size):>12})   {path}")
-    return lines
-
-
-def format_packages(packages: list[PackageRow]) -> list[str]:
-    installed_total = sum(package.installed_bytes for package in packages)
-    package_total = sum(package.package_bytes for package in packages)
+def format_target_packages(
+    packages: list[PackageManifestRow], manifest_bytes: bytes, metadata: dict[str, str]
+) -> list[str]:
+    manifest_hash = sha256_bytes(manifest_bytes)
+    metadata_hash = metadata.get("target package manifest sha256")
     lines = [
-        "Prepared target package closure",
-        f"  packages: {len(packages)}",
-        f"  sum of installed package sizes: {installed_total} bytes ({human_bytes(installed_total)})",
-        f"  sum of compressed APK sizes: {package_total} bytes ({human_bytes(package_total)})",
-        "  largest installed package contributions",
-        "    installed bytes   APK bytes        package",
+        "Network-installed target rootfs",
+        "  The finished target rootfs is not embedded in this ISO.",
+        "  After network and DNS preflight, the installer uses this direct package manifest with apk.",
+        f"  direct package manifest: {len(packages)} packages; {len(manifest_bytes)} bytes ({human_bytes(len(manifest_bytes))})",
+        f"  direct package manifest SHA-256: {manifest_hash}",
     ]
-    for package in sorted(
-        packages, key=lambda item: (-item.installed_bytes, item.name)
-    )[:25]:
-        lines.append(
-            f"    {package.installed_bytes:>14} {package.package_bytes:>14}   "
-            f"{package.name} {package.version}"
-        )
+    if metadata_hash is not None:
+        lines.append(f"  ISO metadata manifest SHA-256: {metadata_hash}")
+    lines.extend(("  direct target packages (manifest order)", "    line       package"))
+    for package in packages:
+        lines.append(f"    {package.line_number:>4}       {package.package}")
     return lines
 
 
 def generate_report(dist: Path) -> tuple[str, Path]:
     iso = dist / "home-installer.iso"
-    rootfs_metadata_path = dist / "rootfs-metadata.txt"
     iso_metadata_path = dist / "iso-metadata.txt"
     require_regular_file(iso, "installer ISO")
-    require_regular_file(rootfs_metadata_path, "rootfs metadata")
     require_regular_file(iso_metadata_path, "ISO metadata")
     bsdtar = shutil.which("bsdtar")
     if bsdtar is None:
@@ -472,70 +501,79 @@ def generate_report(dist: Path) -> tuple[str, Path]:
         )
 
     iso_bytes = iso.stat().st_size
-    metadata = parse_metadata_values(rootfs_metadata_path)
-    metadata.update(parse_metadata_values(iso_metadata_path))
-    if metadata.get("iso_bytes") not in (None, iso_bytes):
+    metadata = parse_iso_metadata(iso_metadata_path)
+    metadata_iso_bytes = parse_metadata_iso_bytes(metadata)
+    if metadata_iso_bytes != iso_bytes:
         raise SizeReportError(
-            f"ISO metadata size {metadata['iso_bytes']} does not match {iso_bytes}"
+            f"ISO metadata size {metadata_iso_bytes} does not match {iso_bytes}"
         )
-    if "rootfs_archive_bytes" not in metadata:
-        raise SizeReportError("rootfs archive size is missing from ISO metadata")
+    metadata_iso_hash = metadata.get("iso sha256")
+    iso_hash = sha256_file(iso)
+    if metadata_iso_hash is not None and metadata_iso_hash != iso_hash:
+        raise SizeReportError("ISO metadata SHA-256 does not match home-installer.iso")
 
     listing = run_bsdtar(bsdtar, ["-tvf", str(iso)], iso=iso).stdout
     iso_entries = parse_bsdtar_listing(listing)
-    overlay = next((entry for entry in iso_entries if entry.path == OVERLAY_MEMBER), None)
-    if overlay is None:
+    overlay_member = next(
+        (entry for entry in iso_entries if entry.path == OVERLAY_MEMBER), None
+    )
+    if overlay_member is None:
         raise SizeReportError(f"ISO member is missing: {OVERLAY_MEMBER}")
-    if overlay.logical_bytes <= 0:
-        raise SizeReportError(f"ISO member is empty: {OVERLAY_MEMBER}")
+    if overlay_member.kind != "file" or overlay_member.logical_bytes <= 0:
+        raise SizeReportError(f"ISO member is not a non-empty file: {OVERLAY_MEMBER}")
 
-    rootfs = analyze_embedded_rootfs(bsdtar, iso)
-    if rootfs["archive_bytes"] != metadata["rootfs_archive_bytes"]:
+    overlay = analyze_embedded_overlay(bsdtar, iso)
+    package_manifest_bytes = overlay["package_manifest_bytes"]
+    assert isinstance(package_manifest_bytes, bytes)
+    metadata_manifest_hash = metadata.get("target package manifest sha256")
+    if (
+        metadata_manifest_hash is not None
+        and metadata_manifest_hash != sha256_bytes(package_manifest_bytes)
+    ):
         raise SizeReportError(
-            "embedded rootfs archive size "
-            f"{rootfs['archive_bytes']} does not match metadata "
-            f"{metadata['rootfs_archive_bytes']}"
+            "ISO metadata target package manifest SHA-256 does not match installer overlay"
         )
-    packages = parse_package_rows(rootfs_metadata_path)
 
     detail_dir = dist / "size-report"
     detail_dir.mkdir(parents=True, exist_ok=True)
     write_iso_members(detail_dir / "iso-members.tsv", iso_entries)
-    members = rootfs["members"]
+    members = overlay["members"]
     assert isinstance(members, list)
-    write_rootfs_members(detail_dir / "rootfs-members.tsv", members)
-    write_packages(detail_dir / "packages.tsv", packages)
+    write_overlay_members(detail_dir / "overlay-members.tsv", members)
+    packages = overlay["package_manifest"]
+    assert isinstance(packages, list)
+    write_target_package_manifest(detail_dir / "target-package-manifest.tsv", packages)
 
     lines = [
         "Home installer post-build size report",
         "",
-        "Measurements distinguish compressed ISO members from the installed target filesystem.",
-        "The ISO is uncompressed at the filesystem-member level; most members are already compressed archives.",
+        "Measurements distinguish compressed live-media members, the streamed installer overlay, and the direct target package manifest.",
+        "The target rootfs is network-installed and is not an embedded ISO payload.",
         "",
         "Artifact",
         f"  ISO: {iso_bytes} bytes ({human_bytes(iso_bytes)})",
-        f"  ISO SHA-256: {sha256_file(iso)}",
-        f"  embedded installer overlay: {overlay.logical_bytes} bytes ({human_bytes(overlay.logical_bytes)})",
-        f"  live APK repository: {sum(entry.logical_bytes for entry in iso_entries if entry.path.startswith('apks/') and entry.kind == 'file')} bytes",
-        f"  live kernel modloop: {sum(entry.logical_bytes for entry in iso_entries if entry.path == 'boot/modloop-lts')} bytes",
+        f"  ISO SHA-256: {iso_hash}",
+        f"  embedded installer overlay: {overlay_member.logical_bytes} bytes ({human_bytes(overlay_member.logical_bytes)})",
         "",
     ]
+    lines.extend(format_live_payloads(iso_entries))
+    lines.append("")
     lines.extend(format_iso_section(iso_entries, iso_bytes))
     lines.append("")
     lines.extend(format_largest_iso(iso_entries, iso_bytes))
     lines.append("")
-    lines.extend(format_rootfs_section(rootfs, metadata))
+    lines.extend(format_overlay_section(overlay, overlay_member.logical_bytes))
     lines.append("")
-    lines.extend(format_largest_rootfs(rootfs))
+    lines.extend(format_overlay_assets(overlay))
     lines.append("")
-    lines.extend(format_packages(packages))
+    lines.extend(format_target_packages(packages, package_manifest_bytes, metadata))
     lines.extend(
         (
             "",
             "Complete detail files",
             f"  ISO members: {detail_dir / 'iso-members.tsv'}",
-            f"  embedded rootfs members: {detail_dir / 'rootfs-members.tsv'}",
-            f"  resolved packages: {detail_dir / 'packages.tsv'}",
+            f"  installer overlay members: {detail_dir / 'overlay-members.tsv'}",
+            f"  direct target package manifest: {detail_dir / 'target-package-manifest.tsv'}",
         )
     )
     report = "\n".join(lines) + "\n"

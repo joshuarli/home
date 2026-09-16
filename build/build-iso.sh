@@ -9,7 +9,7 @@ cp /work/iso/mkimg.home_installer.sh "$aports/scripts/mkimg.home_installer.sh"
 cp /work/iso/genapkovl-home-installer.sh "$aports/scripts/genapkovl-home-installer.sh"
 chmod +x "$aports/scripts/mkimg.home_installer.sh" "$aports/scripts/genapkovl-home-installer.sh"
 
-export HOME_INSTALLER_ROOTFS_ARCHIVE=/work/rootfs.tar.gz
+export HOME_INSTALLER_ASSETS=/work/assets
 mkdir -p /root/.abuild
 if ! find /root/.abuild -maxdepth 1 -type f -name '*.rsa' -print -quit | grep -q .; then
     abuild-keygen -a -n
@@ -46,16 +46,19 @@ iso=$(find /work/out -maxdepth 1 -type f -name '*.iso' | head -n 1)
 [ -n "$iso" ] || { echo "mkimage did not produce an ISO" >&2; exit 1; }
 cp "$iso" /work/out/home-installer.iso
 
-# Keep build facts beside the exported ISO.  This is deliberately metadata,
-# not a second distribution artifact: it records the inputs and sizes needed
-# to distinguish the compressed ISO from the embedded rootfs payload.
+# Keep build facts beside the exported ISO. This is deliberately metadata, not
+# a second distribution artifact: it records the network-install contract and
+# the inputs needed to interpret the compressed live-media payload.
 {
 	echo 'Home installer ISO metadata'
 	echo "alpine release: $release"
 	echo "aports branch: ${ALPINE_APORTS_BRANCH:-${tag}-stable}"
 	echo "aports revision: $(git -C "$aports" rev-parse HEAD)"
-	echo "rootfs archive bytes: $(stat -c '%s' /work/rootfs.tar.gz)"
-	echo "rootfs archive sha256: $(sha256sum /work/rootfs.tar.gz | awk '{print $1}')"
+	echo 'target install mode: network-first apk --root --initdb --no-scripts, followed by configure.sh and apk fix linux-lts'
+	echo "target package manifest sha256: $(sha256sum /work/assets/rootfs-packages.txt | awk '{print $1}')"
+	echo "target repository file sha256: $(sha256sum /work/assets/repositories | awk '{print $1}')"
+	echo "installer asset bytes: $(du -sk /work/assets | awk '{print $1 * 1024}')"
+	echo "installer asset count: $(find /work/assets -type f | wc -l | tr -d ' ')"
 	echo "iso bytes: $(stat -c '%s' /work/out/home-installer.iso)"
 	echo "iso sha256: $(sha256sum /work/out/home-installer.iso | awk '{print $1}')"
 	echo 'kernel flavor: linux-lts'

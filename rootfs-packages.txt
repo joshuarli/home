@@ -4,6 +4,7 @@
 
 # Alpine base, UEFI kernel and the target Intel hardware.
 alpine-base
+apk-tools
 linux-lts
 intel-ucode
 linux-firmware-intel

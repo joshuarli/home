@@ -3,7 +3,6 @@ set -eu
 
 repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 configure=$repo/rootfs/configure.sh
-build_rootfs=$repo/build/build-rootfs.sh
 
 fail() {
 	echo "initramfs UUID contract: $*" >&2
@@ -36,7 +35,6 @@ not_contains "$configure" 'kernel_trigger_archive='
 not_contains "$configure" 'kernel-hooks.trigger'
 not_contains "$configure" 'patch-initramfs'
 not_contains "$configure" 'features.d/home.files'
-not_contains "$build_rootfs" 'patch-initramfs'
 missing "$repo/rootfs/patch-initramfs.sh"
 
 echo 'initramfs UUID contract tests passed'

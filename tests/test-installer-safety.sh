@@ -41,6 +41,9 @@ contains "$installer" '[ -z "${INSTALLER_CONFIRM-}" ]'
 contains "$installer" '[ "${INSTALLER_TEST_MODE-}" = 1 ]'
 contains "$installer" '[ -r "$qemu_seed_file" ]'
 contains "$installer" 'require_disk_confirmation "$confirmation" "$disk"'
+contains "$installer" 'apk --root "$target" --initdb --no-scripts'
+contains "$installer" 'refusing to modify the target disk'
+not_contains "$installer" 'embedded rootfs archive'
 
 # A mounted swap partition is resolved to its parent before the destructive
 # target check; checking only the swap child would permit erasing its disk.

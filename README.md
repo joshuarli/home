@@ -27,22 +27,23 @@ make run                    # graphical boot of the retained installed disk
 
 `make size` is a post-build measurement, not a second image build. It uses
 the host's `bsdtar` (included with macOS) to enumerate every ISO member,
-streams the nested prepared rootfs archive, and writes:
+streams the small installer overlay, and writes:
 
 - `dist/size-report.txt`, a readable breakdown of ISO categories, the live
-  kernel/modloop, APK repository, embedded rootfs, firmware/kernel-module
-  classes, largest files and largest packages;
+  kernel/modloop, live bootstrap APK repository, installer assets and the
+  network-installed target manifest;
 - `dist/size-report/iso-members.tsv`, every ISO member with logical and
   2048-byte-sector allocation sizes;
-- `dist/size-report/rootfs-members.tsv`, every embedded target-root member;
-- `dist/size-report/packages.tsv`, the complete resolved APK package table.
+- `dist/size-report/overlay-members.tsv`, every member of the installer
+  overlay;
+- `dist/size-report/target-package-manifest.tsv`, the complete direct target
+  package manifest carried by the ISO.
 
-The report deliberately distinguishes compressed archive bytes, ISO member
-bytes, and installed filesystem allocation. On the current build, the largest
-ISO components are the prepared rootfs overlay, the live kernel modloop, and
-the live APK repository; Intel firmware is significant but is not the sole
-source of the image size. Linux hosts need a `bsdtar`/libarchive installation
-to run `make size`.
+The report deliberately distinguishes compressed archive bytes from ISO member
+bytes. The target root filesystem is not embedded: only the package manifest,
+repository file and small configuration assets are carried in the overlay.
+The live kernel/modloop remains the dominant unavoidable payload; Linux hosts
+need a `bsdtar`/libarchive installation to run `make size`.
 
 `make test` recreates only `dist/qemu/disk.img` and other generated files
 under `dist/qemu/`. It is destructive to that disposable VM state. It never
@@ -91,13 +92,13 @@ The root filesystem is identified by filesystem `UUID`. Kernel hooks generate
 future kernel regeneration. Secure Boot is intentionally unsupported because
 the image is unsigned.
 
-The prepared rootfs deliberately contains no generated EFI image. Its
-package-owned secureboot hook is configured before installation, but its first
-generation is deferred until the installer has substituted the target root UUID
-and mounted the ESP at `/boot`. `secureboot-hook` builds the embedded initramfs;
-the documented `disable_trigger=yes` setting suppresses the redundant generic
-`mkinitfs` output. Alpine 3.24.1 resolves `root=UUID=...` without a local
-initramfs patch.
+The installer creates the target filesystem over the network from
+`rootfs-packages.txt` using Alpine's `apk --root --initdb --no-scripts` path.
+The small asset bundle then applies the account, session, service and
+kernel-hook configuration. The first package-script lifecycle is deferred
+until the installer has substituted the target root UUID and mounted the ESP at
+`/boot`; `secureboot-hook` builds the embedded initramfs. Alpine 3.24.1 resolves
+`root=UUID=...` without a local initramfs patch.
 
 `home-login` starts the compositor only for the tty1 autologin. Serial and
 recovery VTs remain ordinary ash shells. `home-runtime` creates
@@ -122,10 +123,10 @@ or key-interception daemon.
 ## Runtime boundaries
 
 `rootfs-packages.txt` is the direct installed package manifest. Alpine
-resolves its transitive closure; the rootfs and ISO metadata written by the
-build record resolved counts, filesystem/archive sizes, versions and the ISO
-checksum. Build headers, signing keys, the temporary emulator and installer
-tools remain outside the target rootfs. The live ISO has its own package list.
+resolves its transitive closure during installation from the pinned 3.24 main
+and community repositories. The ISO carries that manifest and the small
+configuration asset bundle, not the resolved target filesystem. The live ISO
+has a separate bootstrap package list and its own APK repository.
 
 The target intentionally has no Xorg/XWayland, D-Bus daemon, elogind daemon, polkit,
 PulseAudio, PipeWire, display manager, desktop shell, SSH server, VA-API
@@ -148,14 +149,13 @@ external media or a rebuilt image is the recovery path for a lost user
 account.
 
 The physical installer requires UEFI with Secure Boot disabled, an Intel
-wireless adapter, and an explicit whole-disk confirmation. It persists the
-tested Wi-Fi credentials with mode `0600`, creates a 512 MiB EFI partition,
-1 GiB swap, and an ext4 root partition using the remaining space. DHCP and
-DNS are bounded preflight checks: failures are advisory because the prepared
-installation payload is embedded, while the tested Wi-Fi configuration is
-still persisted for first boot. The laptop disk is intentionally not
-selectable as a generic removable target; always use a backed-up or
-disposable disk.
+wireless adapter, and an explicit whole-disk confirmation. It establishes DHCP
+and DNS before any destructive disk operation; a failed network preflight stops
+the install with the disk untouched. Once online it installs the package
+manifest, persists the tested Wi-Fi credentials with mode `0600`, creates a
+512 MiB EFI partition, 1 GiB swap, and an ext4 root partition using the
+remaining space. The laptop disk is intentionally not selectable as a generic
+removable target; always use a backed-up or disposable disk.
 
 The installed target uses eudev and seatd for normal device discovery and
 seat access. BusyBox `mdev` is a narrowly scoped initramfs/live-installer
@@ -173,7 +173,7 @@ removes this retained state.
 
 | Evidence | Current scope |
 | --- | --- |
-| QEMU acceptance test | ISO firmware boot, real installer, GPT/filesystems, rootfs extraction, kernel hook, EFI fallback, dwl/foot session, screenshot, input chord, recovery, reboot, offline boot, fresh-vars fallback, and hook regeneration |
+| QEMU acceptance test | no-network fail-closed preflight, ISO firmware boot, real network package install, GPT/filesystems, kernel hook, EFI fallback, package-world verification, dwl/foot session, screenshot, input chord, recovery, reboot, offline boot, fresh-vars fallback, and hook regeneration |
 | Static/host checks | shell syntax, partition naming and sector-size layout, generated-file safety, package/boot/session contracts, QEMU capability inspection |
 | Physical hardware still required | Intel i915/Mesa behavior, Intel Wi-Fi firmware and reconnection, Dell touchpad/libinput behavior, panel modes/backlight, suspend/resume, audio codec, thermal and power management |
 
@@ -184,16 +184,14 @@ claim that the laptop hardware has already been certified.
 
 ## Artifacts, measurements, and evidence
 
-The build writes separate metadata for the rootfs and ISO. Rootfs metadata
-describes the direct package manifest, resolved package count, installed
-filesystem size, largest package contributors, and resolved package names. ISO
-metadata records the Alpine release, aports revision, compressed rootfs
-archive size, ISO size, and ISO SHA-256. These are build facts, not a
-reproducibility claim and not a measure of the installed disk footprint. The
-partitioned QEMU disk capacity is also distinct from used filesystem space.
-For a complete post-build attribution, run `make size`; its member-level TSVs
-make the compressed live-media payloads and the prepared target payload
-auditable without confusing them with one another.
+ISO metadata records the Alpine release, aports revision, target manifest and
+repository hashes, installer asset facts, ISO size, and ISO SHA-256. These are
+build facts, not a reproducibility claim and not a measure of the installed
+disk footprint. The partitioned QEMU disk capacity is also distinct from used
+filesystem space. For complete post-build attribution, run `make size`; its
+member-level TSVs make the compressed live-media payloads, bootstrap APKs and
+installer assets auditable while explicitly showing that no target rootfs is
+embedded.
 
 The acceptance harness retains serial/QEMU logs, invocation data, screenshots,
 firmware variables, per-run metadata, and other stage artifacts under

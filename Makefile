@@ -21,16 +21,13 @@ doctor:
 check:
 	sh -n installer/install.sh \
 		rootfs/configure.sh \
-		build/build-rootfs.sh \
 		build/build-iso.sh \
 		iso/mkimg.home_installer.sh \
 		iso/genapkovl-home-installer.sh \
-		build/rootfs-smoke-assertions.sh \
 		fetch-edk2-ovmf.sh
 	sh tests/test-installer-layout.sh
 	sh tests/test-installer-efi.sh
 	sh tests/test-installer-safety-behavior.sh
-	sh tests/test-rootfs-smoke.sh
 	sh tests/test-contract.sh
 	sh tests/test-installer-safety.sh
 	sh tests/test-overlay-contract.sh

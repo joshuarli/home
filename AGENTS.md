@@ -7,7 +7,8 @@ installer and does not currently support arbitrary hardware.
 ## Product invariants
 
 - `make build` is the normal artifact build and exports
-  `dist/home-installer.iso` plus rootfs/ISO metadata.
+  `dist/home-installer.iso` plus ISO metadata. The target root filesystem is
+  installed over the live network and is not embedded in the ISO.
 - The target boots through UEFI and Alpine's packaged kernel hooks. It does
   not install GRUB. The root command line uses `root=UUID=...`.
 - The installed EFI image is written to both
@@ -45,13 +46,12 @@ installer and does not currently support arbitrary hardware.
 - `Dockerfile` pins the Codeberg `dwl` v0.8 source checksum and builds its
   minimally configured binary in a build-only stage; runtime libraries remain
   Alpine packages in `rootfs-packages.txt`.
-- The alternate-root build uses `apk --root --initdb --no-scripts` because the
-  initial package transaction must not generate an EFI payload before the
-  target filesystem UUID and ESP mount exist. `rootfs/configure.sh` and
-  `build/build-rootfs.sh` explicitly recreate required account, service, font,
-  BusyBox applet and boot-hook side effects; the installer then uses Alpine's
-  package hook lifecycle after UUID substitution. A successful archive alone is
-  not proof.
+- The installer uses `apk --root --initdb --no-scripts` only after the live
+  DHCP/DNS preflight, disk validation, partitioning, filesystem creation and
+  `/boot` mount. `rootfs/configure.sh` applies the required account, service,
+  font, BusyBox applet and boot-hook configuration from the small asset bundle;
+  the installer then uses Alpine's package hook lifecycle after UUID
+  substitution. A successful ISO build alone is not proof.
 - `installer/install.sh` is the destructive boundary. It must preserve UEFI
   and Secure Boot checks in QEMU, accept only whole disks, exclude installer
   media and mounted/protected disks, require explicit confirmation for a
@@ -67,11 +67,13 @@ installer and does not currently support arbitrary hardware.
 input and display capabilities. The host uses native x86_64 QEMU with TCG on
 macOS arm64; it does not run QEMU inside Docker or claim HVF acceleration.
 
-`make test` boots the actual ISO through a matched OVMF CODE/VARS pair, with
-the ISO presented as USB storage and the target as SATA/AHCI. It never uses
-`-kernel`/`-initrd`. An explicit fw_cfg seed starts the real installer with
-`/dev/sda`, waits for its clean poweroff, then boots the installed disk with
-the ISO detached. The harness checks session ownership, seat/DRM/Wayland
+`make test` first runs the actual ISO with connectivity disabled and proves the
+network preflight fails before the disposable disk changes. It then boots the
+ISO through a matched OVMF CODE/VARS pair, with the ISO presented as USB
+storage and the target as SATA/AHCI. It never uses `-kernel`/`-initrd`. An
+explicit fw_cfg seed starts the real installer with `/dev/sda`, waits for its
+clean poweroff, then boots the installed disk with the ISO detached. The
+harness checks package-world completeness, session ownership, seat/DRM/Wayland
 facts, screenshots, Ctrl+Return behavior, terminal command output, recovery
 VT/session lifecycle, reboot without networking, fresh-vars EFI fallback, and
 kernel-hook regeneration on a disposable copy.
@@ -93,11 +95,12 @@ retained disk to the ISO, product-source files, OVMF templates, and QEMU
 profile. `make run` must reject a missing or stale fingerprint and direct the
 user to `make test` before booting it again.
 
-The installer network preflight is bounded. DHCP and DNS failures are
-advisory in both modes because the payload is embedded; physical installation
-still requires an Intel wireless interface so its tested Wi-Fi configuration
-can be persisted. This is a provisioning policy, not a requirement for the
-installed desktop to have network access at boot.
+The installer network preflight is bounded and mandatory. DHCP and DNS
+failures stop before target selection or disk writes because the target package
+closure is fetched online. Physical installation still requires an Intel
+wireless interface so its tested Wi-Fi configuration can be persisted. This is
+a provisioning policy, not a requirement for the installed desktop to have
+network access at boot.
 
 QEMU proves the installer and software session only. It does not certify
 i915, Intel wireless firmware, the Dell touchpad/panel, audio, suspend/resume,
@@ -113,14 +116,16 @@ not establish the exact physical CPU, memory, panel or wireless PCI ID.
 `make doctor` checks the installed QEMU capabilities; unsupported features are
 not silently treated as equivalent hardware.
 
-Build metadata separates compressed artifacts from installed filesystem size
-and records package/archive/ISO facts. Acceptance metadata records per-run
-source/profile/firmware hashes, enabled services, steady-state process count,
-idle available memory and boot-to-terminal timing, but does not establish
-bit-for-bit reproducibility or a historical before/after baseline. Retained
-firmware, kernel, Intel graphics support, and input/network dependencies are
-intentional size tradeoffs and must be described with their measured sizes
-when measurements are available.
+Build metadata records the target manifest/repository hashes, installer asset
+facts and ISO facts. `make size` enumerates every ISO member and nested
+installer-overlay member, including the reduced live APK repository and boot
+modloop; it explicitly reports that no target rootfs is embedded. Acceptance
+metadata records per-run source/profile/firmware hashes, enabled services,
+steady-state process count, idle available memory and boot-to-terminal timing,
+but does not establish bit-for-bit reproducibility or a historical before/after
+baseline. Retained firmware, kernel, Intel graphics support, and input/network
+dependencies are intentional size tradeoffs and must be described with their
+measured sizes when measurements are available.
 
 ## Change and verification rules
 

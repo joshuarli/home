@@ -4,7 +4,7 @@ profile_home_installer() {
     profile_base
     profile_abbrev="home"
     title="Home installer"
-    desc="Minimal Alpine installer for the prebuilt home rootfs."
+    desc="Minimal Alpine network bootstrap installer for the home system."
     image_ext="iso"
     output_format="iso"
     arch="x86_64"
@@ -12,7 +12,11 @@ profile_home_installer() {
     kernel_flavors="lts"
     modloop_sign="no"
     kernel_addons=
-    apks="alpine-base linux-lts linux-firmware-intel linux-firmware-i915 wpa_supplicant wpa_supplicant-openrc ifupdown-ng ifupdown-ng-wifi iproute2 util-linux kmod blkid findmnt lsblk partx sfdisk wipefs dosfstools e2fsprogs efibootmgr tar gzip bind-tools"
+    # linux-lts and firmware are supplied by update-kernel in the boot
+    # section. Keep them out of /apks: the live root needs only this small
+    # bootstrap closure, while the installed target is fetched after network
+    # preflight from the pinned Alpine repositories.
+    apks="alpine-base wpa_supplicant ifupdown-ng iproute2 util-linux kmod blkid findmnt lsblk partx sfdisk wipefs dosfstools e2fsprogs efibootmgr bind-tools"
     apkovl="genapkovl-home-installer.sh"
     hostname="home-installer"
 }
