@@ -3,9 +3,77 @@ set -eu
 
 url=https://github.com/osdev0/edk2-ovmf-nightly/releases/download/20260531T041444Z/edk2-ovmf.tar.xz
 sha256=5aa3e4b3abed958c15f39067aa7a397469d4ea277afbd4f9f77d52472b0197bd
-firmware_dir=${EDK2_OVMF_DIR:-dist/qemu/firmware}
+repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+firmware_root=$repo_dir/dist/qemu/firmware
+firmware_dir=${EDK2_OVMF_DIR:-$firmware_root}
+case $firmware_dir in
+    /*) ;;
+    *) firmware_dir=$repo_dir/$firmware_dir ;;
+esac
+case $firmware_dir in
+    "$firmware_root"|"$firmware_root"/*) ;;
+    *) echo 'EDK2_OVMF_DIR must be beneath dist/qemu/firmware' >&2; exit 1 ;;
+esac
+case $firmware_dir in
+    *'/../'*|*/..|../*|..)
+        echo 'EDK2_OVMF_DIR must not contain parent-directory components' >&2
+        exit 1
+        ;;
+esac
 install_dir="$firmware_dir/edk2-ovmf-nightly"
 marker="$firmware_dir/.edk2-ovmf-url"
+
+ensure_directory() {
+    directory=$1
+    [ ! -L "$directory" ] || {
+        echo "refusing symlink directory: $directory" >&2
+        exit 1
+    }
+    if [ -e "$directory" ]; then
+        [ -d "$directory" ] || {
+            echo "refusing non-directory path: $directory" >&2
+            exit 1
+        }
+    else
+        mkdir "$directory"
+    fi
+}
+
+ensure_directory "$repo_dir/dist"
+ensure_directory "$repo_dir/dist/qemu"
+ensure_directory "$firmware_root"
+current=$firmware_root
+relative=${firmware_dir#"$firmware_root"}
+old_ifs=$IFS
+IFS=/
+set -f
+for component in $relative; do
+    [ -n "$component" ] || continue
+    [ "$component" != . ] || continue
+    current=$current/$component
+    ensure_directory "$current"
+done
+IFS=$old_ifs
+set +f
+
+[ ! -L "$install_dir" ] || {
+    echo "refusing symlink installation directory: $install_dir" >&2
+    exit 1
+}
+if [ -e "$install_dir" ]; then
+    [ -d "$install_dir" ] || {
+        echo "refusing non-directory installation target: $install_dir" >&2
+        exit 1
+    }
+fi
+[ ! -L "$firmware_dir/edk2-ovmf.tar.xz" ] || {
+    echo "refusing symlink archive target" >&2
+    exit 1
+}
+[ ! -L "$marker" ] || {
+    echo "refusing symlink marker target" >&2
+    exit 1
+}
 
 sha256_file() {
     if command -v shasum >/dev/null 2>&1; then
@@ -43,7 +111,7 @@ vars_source=$(find "$tmp_dir/extracted" -type f -name 'ovmf-vars-x86_64.fd' -pri
 [ -n "$code_source" ] || { echo "downloaded archive has no x86_64 OVMF code image" >&2; exit 1; }
 [ -n "$vars_source" ] || { echo "downloaded archive has no x86_64 OVMF vars image" >&2; exit 1; }
 
-rm -rf "$install_dir"
+rm -rf -- "$install_dir"
 mkdir -p "$install_dir/x64"
 cp "$code_source" "$install_dir/x64/code.fd"
 cp "$vars_source" "$install_dir/x64/vars.fd"

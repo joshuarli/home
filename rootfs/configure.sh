@@ -1,37 +1,103 @@
 #!/bin/sh
 set -eu
 
-rootfs=$1
-[ -n "$rootfs" ] || { echo "rootfs path is required" >&2; exit 1; }
+rootfs=${1:?rootfs path is required}
 
 cp /etc/apk/repositories "$rootfs/etc/apk/repositories"
 /bin/busybox --install -s "$rootfs/bin"
 ln -sf /bin/busybox "$rootfs/sbin/init"
-cp /work/fetch.sh "$rootfs/bin/fetch.sh"
-chmod 0755 "$rootfs/bin/fetch.sh"
+
+install -m 0755 /work/fetch.sh "$rootfs/bin/fetch.sh"
+install -m 0755 /work/home-login "$rootfs/usr/bin/home-login"
+install -m 0755 /work/home-session "$rootfs/usr/bin/home-session"
+install -m 0755 /work/home-runtime.initd "$rootfs/etc/init.d/home-runtime"
 
 home="$rootfs/home/josh"
-mkdir -p "$home"
-chown 1000:1000 "$home"
+mkdir -p "$home/.config/foot"
+install -m 0644 /work/foot.ini "$home/.config/foot/foot.ini"
+chown -R 1000:1000 "$home"
 
-if ! grep -q '^josh:' "$rootfs/etc/passwd"; then
-    echo 'josh:x:1000:1000:josh:/home/josh:/bin/ash' >> "$rootfs/etc/passwd"
+next_gid() {
+	awk -F: 'BEGIN {max=999} $3 > max {max=$3} END {print max + 1}' "$rootfs/etc/group"
+}
+
+ensure_group() {
+	group_name=$1
+	requested_gid=${2:-}
+	group_count=$(awk -F: -v name="$group_name" '$1 == name {count++} END {print count + 0}' "$rootfs/etc/group")
+	[ "$group_count" -le 1 ] || {
+		echo "group $group_name is defined more than once" >&2
+		exit 1
+	}
+	if grep -q "^$group_name:" "$rootfs/etc/group"; then
+		actual_gid=$(awk -F: -v name="$group_name" '$1 == name {print $3; exit}' "$rootfs/etc/group")
+		if [ -n "$requested_gid" ] && [ "$actual_gid" != "$requested_gid" ]; then
+			echo "group $group_name has GID $actual_gid, expected $requested_gid" >&2
+			exit 1
+		fi
+		return 0
+	fi
+	group_gid=$requested_gid
+	if [ -z "$group_gid" ]; then
+		group_gid=$(next_gid)
+	fi
+	if awk -F: -v gid="$group_gid" '$3 == gid {found=1} END {exit found ? 0 : 1}' "$rootfs/etc/group"; then
+		echo "GID $group_gid is already in use while creating $group_name" >&2
+		exit 1
+	fi
+	echo "$group_name:x:$group_gid:" >> "$rootfs/etc/group"
+}
+
+ensure_member() {
+	group_name=$1
+	user_name=$2
+	tmp=$(mktemp)
+	awk -F: -v OFS=: -v group_name="$group_name" -v user_name="$user_name" '
+		$1 == group_name {
+			count = split($4, members, ",")
+			$4 = ""
+			for (i = 1; i <= count; i++) {
+				member = members[i]
+				if (member == "" || seen[member]++) continue
+				$4 = ($4 == "" ? member : $4 "," member)
+			}
+			if (!seen[user_name]) $4 = ($4 == "" ? user_name : $4 "," user_name)
+		}
+		{ print }
+	' "$rootfs/etc/group" > "$tmp"
+	mv "$tmp" "$rootfs/etc/group"
+}
+
+ensure_group josh 1000
+ensure_group wheel 10
+ensure_group seat
+
+if grep -q '^josh:' "$rootfs/etc/passwd"; then
+	[ "$(awk -F: '$1 == "josh" {count++} END {print count + 0}' "$rootfs/etc/passwd")" -eq 1 ] || {
+		echo 'josh account is defined more than once' >&2
+		exit 1
+	}
+	awk -F: '$1 == "josh" && ($3 != 1000 || $4 != 1000 || $6 != "/home/josh" || $7 != "/usr/bin/home-login") {bad=1} END {exit bad ? 0 : 1}' "$rootfs/etc/passwd" && {
+		echo 'existing josh account does not match the target contract' >&2
+		exit 1
+	}
+else
+	echo 'josh:x:1000:1000:josh:/home/josh:/usr/bin/home-login' >> "$rootfs/etc/passwd"
 fi
-if ! grep -q '^josh:' "$rootfs/etc/group"; then
-    echo 'josh:x:1000:' >> "$rootfs/etc/group"
+
+ensure_member wheel josh
+ensure_member seat josh
+
+if grep -q '^josh:' "$rootfs/etc/shadow"; then
+	[ "$(awk -F: '$1 == "josh" {count++} END {print count + 0}' "$rootfs/etc/shadow")" -eq 1 ] || {
+		echo 'josh shadow entry is defined more than once' >&2
+		exit 1
+	}
+	sed -i -E 's/^josh:[^:]*/josh:/' "$rootfs/etc/shadow"
+else
+	echo 'josh::19000:0:99999:7:::' >> "$rootfs/etc/shadow"
 fi
-if ! grep -q '^seat:' "$rootfs/etc/group"; then
-    echo 'seat:x:1001:josh' >> "$rootfs/etc/group"
-fi
-for group in wheel seat; do
-    if grep -q "^$group:" "$rootfs/etc/group" && ! grep "^$group:" "$rootfs/etc/group" | grep -q ',josh$'; then
-        sed -i "/^$group:/ s/$/,josh/" "$rootfs/etc/group"
-    fi
-done
-if ! grep -q '^josh:' "$rootfs/etc/shadow"; then
-    echo 'josh::19000:0:99999:7:::' >> "$rootfs/etc/shadow"
-fi
-sed -i 's/^root:[^:]*/root:!/' "$rootfs/etc/shadow"
+sed -i -E 's/^root:[^:]*/root:!/' "$rootfs/etc/shadow"
 
 mkdir -p "$rootfs/etc/doas.d"
 cat > "$rootfs/etc/doas.d/josh.conf" <<'EOF'
@@ -41,6 +107,7 @@ chmod 0400 "$rootfs/etc/doas.d/josh.conf"
 
 echo alpine > "$rootfs/etc/hostname"
 ln -sf /usr/share/zoneinfo/America/Los_Angeles "$rootfs/etc/localtime"
+mkdir -p "$rootfs/etc/profile.d"
 cat > "$rootfs/etc/profile.d/home-installer.sh" <<'EOF'
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
@@ -63,21 +130,110 @@ auto lo
 iface lo inet loopback
 EOF
 
+# The installer replaces only this root identifier after it has created the
+# GPT.  The hook-generated EFI image and fstab use the same PARTUUID scheme.
 mkdir -p "$rootfs/etc/kernel-hooks.d"
 cat > "$rootfs/etc/kernel-hooks.d/secureboot.conf" <<'EOF'
-cmdline="console=ttyS0,115200 console=tty0 root=LABEL=ALPINE_ROOT rootfstype=ext4 rw"
+cmdline="console=ttyS0,115200 console=tty0 root=PARTUUID=INSTALLER_ROOT_PARTUUID rootfstype=ext4 rw"
 signing_disabled=yes
 output_dir="/boot/EFI/alpine"
 output_name="linux-{flavor}.efi"
+backup_old=no
+EOF
+ln -sf /usr/share/kernel-hooks.d/secureboot.hook "$rootfs/etc/kernel-hooks.d/50-secureboot.hook"
+cat > "$rootfs/etc/kernel-hooks.d/60-home-fallback" <<'EOF'
+#!/bin/sh
+set -eu
+
+flavor=${1:?kernel flavor is required}
+canonical="/boot/EFI/alpine/linux-$flavor.efi"
+fallback="/boot/EFI/BOOT/BOOTX64.EFI"
+[ -f "$canonical" ] || exit 0
+mkdir -p "${fallback%/*}"
+temporary="$fallback.home-installer.$$"
+trap 'rm -f "$temporary"' EXIT HUP INT TERM
+umask 022
+cp -p "$canonical" "$temporary"
+mv -f "$temporary" "$fallback"
+trap - EXIT HUP INT TERM
+EOF
+chmod 0755 "$rootfs/etc/kernel-hooks.d/60-home-fallback"
+
+# apk --no-scripts keeps the package trigger payload in scripts.tar.gz but
+# does not materialize a callable trigger file. Extract the exact packaged
+# dispatcher once so the installer can replay Alpine's real kernel-hooks
+# trigger after the target PARTUUID and /boot are known.
+kernel_trigger_archive="$rootfs/lib/apk/db/scripts.tar.gz"
+kernel_trigger_entry=$(tar -tzf "$kernel_trigger_archive" |
+	awk '/kernel-hooks[^\/]*\.trigger$/ {print; exit}')
+[ -n "$kernel_trigger_entry" ] || {
+	echo 'kernel-hooks trigger payload is missing from apk database' >&2
+	exit 1
+}
+mkdir -p "$rootfs/usr/libexec/home-installer"
+tar -xOzf "$kernel_trigger_archive" "$kernel_trigger_entry" \
+	> "$rootfs/usr/libexec/home-installer/kernel-hooks.trigger"
+chmod 0755 "$rootfs/usr/libexec/home-installer/kernel-hooks.trigger"
+
+# secureboot-hook normally installs this symlink and asks mkinitfs to run its
+# trigger.  Those package scripts are intentionally suppressed during the
+# alternate-root install, so make the trigger decision explicit here and leave
+# the real generation to the install-time hook after /boot is mounted.  Keep
+# Alpine's packaged feature set: without it mkinitfs would produce an archive
+# containing only firmware and no /init entrypoint.
+mkdir -p "$rootfs/etc/mkinitfs"
+/work/patch-initramfs.sh "$rootfs/usr/share/mkinitfs/initramfs-init"
+cat > "$rootfs/etc/mkinitfs/features.d/home.files" <<'EOF'
+/sbin/blkid
+/sbin/mdev
+EOF
+# nlplug-findfs invokes mdev as its hotplug helper before the installed
+# userspace is available.  Supply the BusyBox applet in the initramfs so
+# Alpine's persistent-storage helper can create the PARTUUID links needed by
+# the kernel command line.  This symlink is not an installed OpenRC device
+# manager; eudev remains the only target runtime device manager.
+ln -sf /bin/busybox "$rootfs/sbin/mdev"
+cat > "$rootfs/etc/mkinitfs/mkinitfs.conf" <<'EOF'
+features="ata base cdrom ext4 home keymap kms mmc nvme raid scsi usb virtio"
+disable_trigger=yes
 EOF
 
-sed -i '/^tty1::/d; /^tty[2-6]::/d' "$rootfs/etc/inittab"
+# Keep one device-manager implementation.  These are the services created by
+# Alpine's setup-devd udev path, expressed as links because apk scripts do not
+# run in the alternate root.
+mkdir -p "$rootfs/etc/runlevels/sysinit" "$rootfs/etc/runlevels/boot" "$rootfs/etc/runlevels/default"
+for service in devfs procfs sysfs dmesg udev udev-trigger udev-settle hwdrivers; do
+	[ -x "$rootfs/etc/init.d/$service" ] || {
+		echo "required OpenRC service is missing: $service" >&2
+		exit 1
+	}
+	ln -sf "/etc/init.d/$service" "$rootfs/etc/runlevels/sysinit/$service"
+done
+
+for service in hwclock hostname bootmisc modules sysctl; do
+	[ -x "$rootfs/etc/init.d/$service" ] || continue
+	ln -sf "/etc/init.d/$service" "$rootfs/etc/runlevels/boot/$service"
+done
+for service in udev-postmount seatd home-runtime networking; do
+	[ -x "$rootfs/etc/init.d/$service" ] || {
+		echo "required default OpenRC service is missing: $service" >&2
+		exit 1
+	}
+	ln -sf "/etc/init.d/$service" "$rootfs/etc/runlevels/default/$service"
+done
+rm -f "$rootfs/etc/runlevels/sysinit/mdev" "$rootfs/etc/runlevels/sysinit/mdevd"
+
+# tty1 is the only autologin that enters home-login.  Other VTs and serial
+# remain ordinary ash recovery consoles.
+sed -i -E '/^tty[1-6]::/d; /^ttyS0::/d' "$rootfs/etc/inittab"
 cat >> "$rootfs/etc/inittab" <<'EOF'
 tty1::respawn:/sbin/agetty --autologin josh --noclear 38400 tty1 linux
+tty2::respawn:/sbin/agetty --noclear 38400 tty2 linux
+tty3::respawn:/sbin/agetty --noclear 38400 tty3 linux
+tty4::respawn:/sbin/agetty --noclear 38400 tty4 linux
+tty5::respawn:/sbin/agetty --noclear 38400 tty5 linux
+tty6::respawn:/sbin/agetty --noclear 38400 tty6 linux
 ttyS0::respawn:/sbin/agetty --autologin josh --noclear 115200 ttyS0 vt100
 EOF
-
-mkdir -p "$rootfs/etc/runlevels/boot"
-ln -sf /etc/init.d/hwclock "$rootfs/etc/runlevels/boot/hwclock"
 
 rm -rf "$rootfs/var/cache/apk"/*

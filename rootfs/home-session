@@ -1,0 +1,62 @@
+#!/bin/sh
+set -eu
+
+runtime=/run/user/1000
+logfile="$runtime/home-session.log"
+
+if [ "$(id -u)" -ne 1000 ] || [ "$(id -g)" -ne 1000 ]; then
+    echo "home-session: refusing to start outside josh's account" >&2
+    exec /bin/ash -l
+fi
+if [ "$(tty 2>/dev/null || true)" != /dev/tty1 ]; then
+    echo "home-session: refusing to start outside tty1" >&2
+    exec /bin/ash -l
+fi
+if [ ! -d "$runtime" ] || [ -L "$runtime" ] ||
+    [ "$(stat -c '%u:%g:%a' "$runtime" 2>/dev/null || true)" != 1000:1000:700 ]; then
+    echo "home-session: XDG_RUNTIME_DIR is not a private josh-owned directory" >&2
+    exec /bin/ash -l
+fi
+
+umask 077
+export HOME=/home/josh
+export USER=josh
+export LOGNAME=josh
+export SHELL=/bin/ash
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export LANG=${LANG:-en_US.UTF-8}
+export LC_ALL=${LC_ALL:-en_US.UTF-8}
+export XDG_SESSION_TYPE=wayland
+export XDG_RUNTIME_DIR=$runtime
+unset DISPLAY
+
+: > "$logfile"
+chmod 0600 "$logfile"
+printf '%s\n' "home-session: starting dwl on $(tty)" >> "$logfile"
+
+# The QEMU harness can opt into the pixman renderer through a root-created
+# fw_cfg flag.  The kernel's raw fw_cfg file is root-readable only, so the
+# root-owned runtime service projects this one explicit VM choice into /run.
+# A physical boot never sees the flag and therefore uses wlroots' normal DRM
+# renderer selection for the Intel GPU.
+renderer_file=/run/home-installer-qemu-renderer
+if [ -r "$renderer_file" ] && [ "$(tr -d '\n' < "$renderer_file")" = pixman ]; then
+	export WLR_RENDERER=pixman
+	# QEMU exposes both its default bochs framebuffer and virtio-gpu.  The
+	# software renderer cannot import the virtio DMA-BUF path, so use the
+	# bochs DRM node for this explicitly virtual-only branch.
+	export WLR_DRM_DEVICES=/dev/dri/card0
+	printf '%s\n' 'home-session: QEMU pixman renderer selected' >> "$logfile"
+fi
+
+# dwl v0.8 writes its status stream to the startup command's stdin.  Closing
+# foot's stdin is the documented way to avoid a status consumer or a stall.
+if /usr/bin/dwl -s '/usr/bin/foot <&-' >> "$logfile" 2>&1; then
+	dwl_status=0
+else
+	dwl_status=$?
+fi
+printf 'home-session: dwl exited with status %s\n' "$dwl_status" >> "$logfile"
+echo "The graphical session ended (dwl status $dwl_status)." >&2
+echo "Use Ctrl+Alt+F2 for another recovery console, or run doas reboot." >&2
+exec /bin/ash -l

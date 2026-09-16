@@ -1,30 +1,53 @@
+# Runtime ownership: the installed target only needs this direct set.  Alpine
+# 3.24.1 has no dwl package; the pinned upstream binary is built in Docker and
+# installed separately while its runtime libraries remain package-managed.
+
+# Alpine base, UEFI kernel and the target Intel hardware.
 alpine-base
 linux-lts
 intel-ucode
 linux-firmware-intel
 linux-firmware-i915
+
+# Account, console and local privilege boundary.
 doas
 agetty
-less
-nano
+
+# DHCP/Wi-Fi; networking is useful but never gates the graphical session.
 iproute2
 ifupdown-ng
 ifupdown-ng-wifi
 wpa_supplicant
 wpa_supplicant-openrc
-alsa-lib
+
+# Locale and clock.
 musl-locales
 tzdata
+
+# Alpine EFI-stub kernel hook path.
+blkid
+kernel-hooks
 systemd-efistub
 secureboot-hook
-wayland
-wayland-protocols
+
+# Device, input and seat ownership.  eudev is the one device manager; mdev
+# is deliberately not enabled in the installed target.
+eudev
+eudev-openrc
+udev-init-scripts-openrc
 libinput
 seatd
+seatd-openrc
+
+# Wayland compositor and software/Intel-capable DRM stack.
+wlroots0.19
 mesa-egl
+mesa-gles
 mesa-gbm
 mesa-dri-gallium
-mesa-va-gallium
-intel-media-driver
-libva-utils
+xkeyboard-config
 
+# The small desktop surface: one terminal, its terminfo, and one font family.
+foot
+fontconfig
+font-dejavu

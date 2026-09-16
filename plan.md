@@ -10,7 +10,7 @@ MISSION
 Refactor this into the smallest straightforward, maintainable Alpine system
 that cold-boots into dwl with one usable foot terminal already open.
 
-Ctrl+Return must open another foot terminal.
+Upstream dwl's Alt+Shift+Return must open another foot terminal.
 
 The repository should become simpler, not acquire a general-purpose distro
 framework, desktop environment, or elaborate test platform.
@@ -136,8 +136,10 @@ drivers or firmware because the virtual machine does not use them. Do not
 pretend the existing QEMU diagnostic fixture identifies my physical laptop.
 
 Prefer Alpine packages and appropriate subpackages over custom builds.
-Build dwl because its configuration requires it. Do not turn shaving minor
-dependencies into a custom Mesa/wlroots distribution project.
+Alpine 3.24.1 does not package dwl, so compile the pinned upstream release
+with its stock configuration in a build-only stage. Do not add a repository-
+owned dwl package/config or turn shaving minor dependencies into a custom
+Mesa/wlroots distribution project.
 
 If a large dependency remains, quantify it and explain the tradeoff rather
 than silently declaring the image minimal.
@@ -145,7 +147,7 @@ than silently declaring the image minimal.
 Keep build tools, development headers, temporary emulators, package caches
 and test tools out of the installed image.
 
-4. BUILD A SMALL, EXPLICIT DWL CONFIGURATION
+4. USE THE UPSTREAM DWL CONFIGURATION
 
 Choose and pin an upstream dwl release or immutable commit compatible with
 the wlroots ABI available in the selected stable Alpine branch. Verify this
@@ -155,22 +157,13 @@ Use the current upstream location, not an obsolete mirror by accident.
 Record source checksums and the chosen versions. Do not follow an unpinned
 master branch or mix edge packages into stable to make a build succeed.
 
-Build in a separate build-only stage. Prefer a tiny local APK with tracked
-runtime dependencies over unmanaged files copied into /usr/bin. Do not
-globally weaken APK signature verification.
+Build in a separate build-only stage and install only the resulting upstream
+binary into the target. Keep all runtime libraries package-managed by Alpine;
+do not globally weaken APK signature verification or vendor a dwl fork.
 
-Keep the local configuration and any patch very small and reviewable.
-Do not vendor an unrelated dwl fork or add a patch collection.
-
-Configure the terminal command to run ordinary foot. Bind exactly
-Ctrl+Return to spawning it—not Super+Return, not Ctrl+Shift+Return.
-
-Use the chosen release's correct keybinding types/constants. The intended
-binding is the equivalent of:
-
-    WLR_MODIFIER_CTRL + XKB_KEY_Return -> spawn {"foot", NULL}
-
-Do not invent a runtime dwl configuration format.
+Use the release's stock configuration: it runs ordinary foot, leaves XWayland
+disabled, and binds Alt+Shift+Return to spawning foot. Do not add a local
+config.h, patch collection, or invented runtime dwl configuration format.
 
 Use dwl's native startup-command mechanism to launch the initial foot
 after the compositor is ready. Start exactly one terminal per session.
@@ -182,6 +175,11 @@ the compositor. Do not introduce a status bar merely to consume it.
 
 Remove bindings that invoke absent applications. Keep and document a small
 usable set for focus, closing a window, exiting dwl and console recovery.
+
+The selected upstream stock v0.8 configuration includes its example `Mod+p`
+binding for `wmenu-run`. Because this image intentionally has no launcher,
+that upstream example remains dormant; do not add a local dwl config, wrapper,
+or launcher package merely to activate it.
 
 Keep foot configuration minimal: a real installed monospace font, sensible
 size, working UTF-8 and correct terminfo. Avoid themes, font collections and
@@ -219,7 +217,7 @@ Provide a documented way to bypass GUI startup for recovery.
 Capture useful bounded diagnostics without adding a logging daemon.
 
 Closing the initial terminal must not kill dwl. With no terminals open,
-Ctrl+Return must still work.
+Alt+Shift+Return must still work.
 
 The desktop must start when Wi-Fi is unavailable. Network acquisition must
 not indefinitely block reaching the terminal.
@@ -372,7 +370,7 @@ E. Verify the normal tty1 autologin/session path:
 F. Capture and inspect a screenshot showing the terminal and rendered text.
    Process existence alone is insufficient.
 
-G. Inject an actual Ctrl+Return chord through QEMU's input interface.
+G. Inject an actual Alt+Shift+Return chord through QEMU's input interface.
    Verify exactly one additional usable foot terminal appears.
    Do not test this by manually spawning foot from serial or only grepping
    the compiled configuration.
@@ -384,7 +382,8 @@ H. Type a shell command through the graphical terminal that produces a
    Avoid false passes from echoed test commands or static marker strings.
 
 I. Verify ordinary Return does not create another terminal. Close terminals,
-   including the original one, and verify Ctrl+Return still opens a new one.
+   including the original one, and verify Alt+Shift+Return still opens a new
+   one.
 
 J. Verify a serial/recovery login does not start an extra compositor.
    Exercise compositor exit/failure and recovery without a respawn storm.
@@ -433,7 +432,7 @@ destructive reset/clean behavior.
 Share VM configuration between test and interactive operation. Avoid
 separate large launcher scripts that drift.
 
-Exploit Docker cache boundaries so editing the installer or dwl config
+Exploit Docker cache boundaries so editing the installer or upstream dwl build
 does not unnecessarily rebuild unrelated layers.
 
 A retained installed disk or qcow2 overlay may support faster session

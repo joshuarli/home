@@ -52,10 +52,15 @@ makefile root:root 0755 "$tmp/root/home-installer/install.sh" <<'EOF'
 #!/bin/sh
 set -eu
 
-for media in /media/cdrom /media/*; do
-    if [ -x "$media/home-installer/install.sh" ]; then
-        exec "$media/home-installer/install.sh" "$@"
-    fi
+attempt=0
+while [ "$attempt" -lt 60 ]; do
+    for media in /media/cdrom /media/*; do
+        if [ -x "$media/home-installer/install.sh" ]; then
+            exec "$media/home-installer/install.sh" "$@"
+        fi
+    done
+    attempt=$((attempt + 1))
+    sleep 1
 done
 
 echo "home-installer install script is not available on the installer media" >&2
@@ -65,6 +70,9 @@ makefile root:root 0644 "$tmp/root/home-installer/rootfs.tar.gz" < "$HOME_INSTAL
 
 rc_add devfs sysinit
 rc_add dmesg sysinit
+# The live installer is intentionally smaller than the installed rootfs and
+# uses BusyBox mdev for early media discovery.  This is a live-media boundary;
+# the installed target uses eudev and never enables an mdev OpenRC service.
 rc_add mdev sysinit
 rc_add hwdrivers sysinit
 rc_add modloop sysinit
@@ -82,20 +90,32 @@ mkdir -p "$tmp/etc/init.d" "$tmp/etc/runlevels/default"
 makefile root:root 0755 "$tmp/etc/init.d/home-installer-qemu" <<'EOF'
 #!/sbin/openrc-run
 
-description="Run the installer automatically in QEMU smoke tests"
+description="Run the installer automatically for an explicit QEMU test seed"
 
 depend() {
     after modloop modules bootmisc
 }
 
 start() {
-    grep -qw home_installer_qemu=1 /proc/cmdline || return 0
-    while [ ! -f /root/home-installer/install.sh ]; do
+    seed=/sys/firmware/qemu_fw_cfg/by_name/opt/home-installer-test/raw
+    [ -r "$seed" ] || return 0
+    [ "$(cat "$seed")" = home-installer-qemu-v1 ] || return 1
+    attempt=0
+    while [ "$attempt" -lt 60 ] && [ ! -x /root/home-installer/install.sh ]; do
+        attempt=$((attempt + 1))
         sleep 1
     done
-    IS_QEMU=1 FETCH_FIXTURE=1 INSTALLER_DISK=/dev/vdb QEMU_NET_IFACE= \
+    if [ ! -x /root/home-installer/install.sh ]; then
+        echo 'home-installer: install script is not available after 60 seconds' >&2
+        return 1
+    fi
+    # This is the same installer interface used by a physical install.  The
+    # seed supplies explicit test input; it does not disable UEFI, Secure Boot,
+    # target validation, confirmation, or cleanup checks.
+    IS_QEMU=1 INSTALLER_TEST_MODE=1 INSTALLER_DISK=/dev/sda \
+        INSTALLER_CONFIRM=/dev/sda QEMU_NET_IFACE=eth0 \
         /root/home-installer/install.sh </dev/ttyS0 >/dev/ttyS0 2>&1 || return 1
-    poweroff -f
+    poweroff
 }
 EOF
 rc_add home-installer-qemu default

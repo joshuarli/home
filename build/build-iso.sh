@@ -45,3 +45,19 @@ sh "$aports/scripts/mkimage.sh" \
 iso=$(find /work/out -maxdepth 1 -type f -name '*.iso' | head -n 1)
 [ -n "$iso" ] || { echo "mkimage did not produce an ISO" >&2; exit 1; }
 cp "$iso" /work/out/home-installer.iso
+
+# Keep build facts beside the exported ISO.  This is deliberately metadata,
+# not a second distribution artifact: it records the inputs and sizes needed
+# to distinguish the compressed ISO from the embedded rootfs payload.
+{
+	echo 'Home installer ISO metadata'
+	echo "alpine release: $release"
+	echo "aports branch: ${ALPINE_APORTS_BRANCH:-${tag}-stable}"
+	echo "aports revision: $(git -C "$aports" rev-parse HEAD)"
+	echo "rootfs archive bytes: $(stat -c '%s' /work/rootfs.tar.gz)"
+	echo "rootfs archive sha256: $(sha256sum /work/rootfs.tar.gz | awk '{print $1}')"
+	echo "iso bytes: $(stat -c '%s' /work/out/home-installer.iso)"
+	echo "iso sha256: $(sha256sum /work/out/home-installer.iso | awk '{print $1}')"
+	echo 'kernel flavor: linux-lts'
+	echo 'installed EFI image: generated after installation from the target PARTUUID; measured by the QEMU acceptance harness'
+} > /work/out/iso-metadata.txt

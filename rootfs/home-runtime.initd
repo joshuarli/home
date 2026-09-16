@@ -1,0 +1,78 @@
+#!/sbin/openrc-run
+
+description="Create the private runtime directory for the josh session"
+
+runtime_root=${HOME_RUNTIME_ROOT:-/run/user}
+runtime=$runtime_root/1000
+
+depend() {
+	need localmount
+	before seatd
+}
+
+start() {
+	# QEMU's automated profile supplies an explicit pixman renderer through
+	# fw_cfg.  The target kernel may ship qemu_fw_cfg as a module, so load it
+	# before the session checks that optional VM-only input.  Physical boots
+	# simply continue when the module is unavailable.
+	if command -v modprobe >/dev/null 2>&1; then
+		modprobe qemu_fw_cfg 2>/dev/null || true
+	fi
+	renderer_source=/sys/firmware/qemu_fw_cfg/by_name/opt/home-renderer/raw
+	renderer_flag=/run/home-installer-qemu-renderer
+	rm -f "$renderer_flag"
+	if [ -r "$renderer_source" ] && [ "$(cat "$renderer_source" 2>/dev/null || true)" = pixman ]; then
+		printf '%s\n' pixman > "$renderer_flag"
+		chown 1000:1000 "$renderer_flag"
+		chmod 0644 "$renderer_flag"
+	fi
+
+	# /run/user is created once by root and is never writable by josh.  Refuse
+	# symlinks and foreign ownership instead of following a path that could be
+	# replaced between a check and a chown/chmod.  The child directory is then
+	# created atomically under that root-owned parent.
+	if [ -L "$runtime_root" ] || [ -e "$runtime_root" ] && [ ! -d "$runtime_root" ]; then
+		eerror "$runtime_root is not a directory"
+		return 1
+	fi
+	if [ ! -e "$runtime_root" ]; then
+		mkdir "$runtime_root" || return 1
+		chown root:root "$runtime_root" || return 1
+		chmod 0755 "$runtime_root" || return 1
+	fi
+	[ "$(stat -c '%u:%g:%a' "$runtime_root" 2>/dev/null || true)" = 0:0:755 ] || {
+		eerror "$runtime_root is not a root-owned 0755 directory"
+		return 1
+	}
+	if [ -L "$runtime" ] || [ -e "$runtime" ] && [ ! -d "$runtime" ]; then
+		eerror "$runtime is not a directory"
+		return 1
+	fi
+	if [ ! -e "$runtime" ]; then
+		umask 077
+		mkdir "$runtime" || return 1
+		chown 1000:1000 "$runtime" || return 1
+		chmod 0700 "$runtime" || return 1
+	else
+		# The parent is root-owned and mode 0755, so an unprivileged process
+		# cannot replace this directory between these checks and updates.
+		[ "$(stat -c '%u:%g' "$runtime" 2>/dev/null || true)" = 1000:1000 ] || {
+			eerror "$runtime is not owned by josh"
+			return 1
+		}
+		chmod 0700 "$runtime" || return 1
+	fi
+	[ "$(stat -c '%u:%g:%a' "$runtime")" = 1000:1000:700 ]
+}
+
+stop() {
+	if [ -f /run/home-installer-qemu-renderer ] && [ ! -L /run/home-installer-qemu-renderer ]; then
+		rm -f /run/home-installer-qemu-renderer
+	fi
+	if [ -d "$runtime" ] && [ ! -L "$runtime" ] &&
+		[ "$(stat -c '%u:%g' "$runtime" 2>/dev/null || true)" = 1000:1000 ] &&
+		[ "$(stat -c '%u:%g:%a' "$runtime" 2>/dev/null || true)" = 1000:1000:700 ]; then
+		find -P "$runtime" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+		rmdir "$runtime"
+	fi
+}

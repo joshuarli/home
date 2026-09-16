@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+# josh's login shell is a guarded dispatcher.  Only the tty1 login created by
+# agetty may enter the graphical session; serial and recovery VTs remain ash.
+tty_name=$(tty 2>/dev/null || true)
+if [ "$tty_name" = /dev/tty1 ] &&
+    ! grep -qw 'home_recovery=1' /proc/cmdline 2>/dev/null &&
+    [ "${HOME_SESSION_DISABLE:-0}" != 1 ]; then
+    exec /usr/bin/home-session "$@"
+fi
+
+exec /bin/ash "$@"
