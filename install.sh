@@ -57,6 +57,9 @@ home=$(printf '%s\n' "$entry" | cut -d: -f6)
 hash=$(awk -F: -v u="$user" '$1 == u { print $2 }' /etc/shadow)
 case $hash in '$'*) ;; *) die "user $user has no usable password; set one with: passwd $user" ;; esac
 
+! awk -F: '$1 == "tty0" && $3 == "respawn"' /etc/inittab | grep -q . ||
+	die 'a getty on tty0 shares the tty1 console with the desktop login; comment out the tty0 line in /etc/inittab and run: kill -HUP 1'
+
 [ -s /etc/apk/repositories ] || die '/etc/apk/repositories is empty; run setup-apkrepos'
 repos=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' /etc/apk/repositories)
 case $repos in */edge/* | */testing*) die "remove edge and testing repositories; this provisioner targets Alpine v$supported_release" ;; esac

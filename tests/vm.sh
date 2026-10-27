@@ -62,8 +62,11 @@ poll() { must "for i in \$(seq 90); do $1 && break; sleep 1; done; $1" 120; }
 monitor() { printf '%s\n' "$1" | nc -U -w 1 "$work/monitor.sock" >/dev/null; }
 
 type_tty1() {
-	printf '%s' "$1" | fold -w 1 | while read -r ch; do monitor "sendkey $ch"; done
-	monitor 'sendkey ret'
+	{
+		printf '%s' "$1" | fold -w 1 | while read -r ch; do printf 'sendkey %s\n' "$ch"; sleep 0.2; done
+		printf 'sendkey ret\n'
+		sleep 1
+	} | nc -U "$work/monitor.sock" >/dev/null
 }
 
 boot() {
@@ -159,13 +162,19 @@ login
 must 'mkdir -p /media/share && mount -t vfat -o ro /dev/vdb1 /media/share'
 must 'apk add -q git make' 600
 must "su josh -c 'cd ~ && git clone -q /media/share/home.bundle home && git clone -q /media/share/usr.bundle usr && git -C usr remote set-url origin https://github.com/joshuarli/usr'"
-must 'find /boot /etc/network /etc/fstab /etc/inittab /etc/doas.conf /etc/doas.d /etc/apk/repositories /etc/hostname -type f 2>/dev/null | sort | xargs sha256sum > /root/baseline'
 must 'cp /etc/apk/world /root/world.before'
 
 [ "$(run 'make -s -C /home/josh/home install USER_NAME=josh > /root/nopass.log 2>&1')" != 0 ] ||
 	fail 'install accepted a user without a password'
 must "grep -q 'josh has no usable password' /root/nopass.log && cmp /etc/apk/world /root/world.before"
 must "echo 'josh:$userpw' | chpasswd"
+
+[ "$(run 'make -s -C /home/josh/home install USER_NAME=josh > /root/tty0.log 2>&1')" != 0 ] ||
+	fail 'install accepted a tty0 getty that shares tty1'
+must "grep -q 'getty on tty0 shares the tty1 console' /root/tty0.log && cmp /etc/apk/world /root/world.before"
+must "sed -i 's/^tty0::/#tty0::/' /etc/inittab && kill -HUP 1"
+must "echo 'export WLR_RENDERER=pixman' > /etc/profile.d/00-vm-renderer.sh"
+must 'find /boot /etc/network /etc/fstab /etc/inittab /etc/doas.conf /etc/doas.d /etc/apk/repositories /etc/hostname -type f 2>/dev/null | sort | xargs sha256sum > /root/baseline'
 
 must "echo 'echo unmanaged' > /etc/profile.d/home-session.sh"
 [ "$(run 'make -s -C /home/josh/home install USER_NAME=josh > /root/conflict.log 2>&1')" != 0 ] ||
