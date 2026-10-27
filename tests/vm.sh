@@ -68,7 +68,7 @@ monitor() { printf '%s\n' "$1" | nc -U -w 1 "$work/monitor.sock" >/dev/null; }
 
 type_tty1() {
 	{
-		printf '%s' "$1" | fold -w 1 | while read -r ch; do printf 'sendkey %s\n' "$ch"; sleep 0.2; done
+		printf '%s\n' "$1" | fold -w 1 | while read -r ch; do printf 'sendkey %s\n' "$ch"; sleep 0.2; done
 		printf 'sendkey ret\n'
 		sleep 1
 	} | nc -U "$work/monitor.sock" >/dev/null
