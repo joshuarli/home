@@ -74,6 +74,7 @@ expect {
 	}
 	-re {ssh key or URL} { send "none\r"; exp_continue }
 	-re {RC=([0-9]+)\r*\n[^\n]*VM# } { if {$expect_out(1,string) != 0} { fail "setup-alpine" } }
+	eof { fail "qemu exited during setup-alpine: [wait]" }
 	timeout { fail "setup-alpine timed out" }
 }
 poweroff
