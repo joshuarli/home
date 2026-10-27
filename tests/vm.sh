@@ -125,7 +125,7 @@ if [ ! -f "$work/$iso" ]; then
 	mv "$work/$iso.part" "$work/$iso"
 fi
 
-rm -f "$work"/share/* "$work/qemu.log" "$work/monitor.sock" "$work/disk.qcow2" "$work/vars.fd" "$work/desktop.ppm"
+rm -f "$work"/share/* "$work/qemu.log" "$work/monitor.sock" "$work/disk.qcow2" "$work/vars.fd" "$work/desktop.ppm" "$work/failure.ppm"
 git bundle create -q "$work/share/home.bundle" HEAD
 git -C "$usr_repo" bundle create -q "$work/share/usr.bundle" HEAD
 cp tests/answers "$work/share/answers"
@@ -216,7 +216,7 @@ poll 'test $(pidof foot | wc -w) -eq 2'
 monitor 'sendkey ctrl-ret'
 poll 'test $(pidof foot | wc -w) -eq 3'
 monitor 'sendkey shift-ret'
-poll 'pidof bemenu >/dev/null'
+poll 'pidof bemenu-run >/dev/null'
 monitor "screendump $work/desktop.ppm"
 must '! pidof Xwayland >/dev/null'
 
