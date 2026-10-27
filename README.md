@@ -12,6 +12,8 @@ Boot the official Alpine 3.24 `standard` ISO and run `setup-alpine`. Choose:
 - networking, which this project never touches,
 - the `community` repository (`setup-apkrepos -c`), with no `edge` or `testing` repositories,
 - an admin user with a password (`setup-user -a`), which configures doas for `wheel`.
+- no getty on `tty0` in `/etc/inittab` (installs booted with a VT `console=`,
+  such as the virt ISO, add one, and it splits tty1 keystrokes with the login).
 
 Reboot into the installed system and log in as that user.
 
@@ -94,6 +96,7 @@ The VM test does not cover these. Check them after provisioning the laptop.
       the interface until `iwlwifi` was listed in `/etc/modules`).
 - [ ] i915 drives the panel; dwl starts on tty1 without errors in `dwl.log`.
 - [ ] Keyboard, including Super bindings, and touchpad tap and two-finger scroll.
+- [ ] dwl renders with GLES on i915 (the VM test forces the pixman renderer).
 - [ ] Ctrl+Alt+F2 reaches a login and Ctrl+Alt+F1 returns to dwl.
 - [ ] Super+p screenshot lands in the clipboard.
 - [ ] Brightness, suspend and resume (not managed; note what is missing).
