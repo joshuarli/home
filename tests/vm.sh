@@ -162,6 +162,11 @@ must "su josh -c 'cd ~ && git clone -q /media/share/home.bundle home && git clon
 must 'find /boot /etc/network /etc/fstab /etc/inittab /etc/doas.conf /etc/doas.d /etc/apk/repositories /etc/hostname -type f 2>/dev/null | sort | xargs sha256sum > /root/baseline'
 must 'cp /etc/apk/world /root/world.before'
 
+[ "$(run 'make -s -C /home/josh/home install USER_NAME=josh > /root/nopass.log 2>&1')" != 0 ] ||
+	fail 'install accepted a user without a password'
+must "grep -q 'josh has no usable password' /root/nopass.log && cmp /etc/apk/world /root/world.before"
+must "echo 'josh:$userpw' | chpasswd"
+
 must "echo 'echo unmanaged' > /etc/profile.d/home-session.sh"
 [ "$(run 'make -s -C /home/josh/home install USER_NAME=josh > /root/conflict.log 2>&1')" != 0 ] ||
 	fail 'install accepted an unmanaged conflicting file'
