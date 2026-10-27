@@ -28,6 +28,11 @@ check 'dwl build dependencies removed' sh -c '! apk info -e .home-dwl-build'
 for cmd in foot bemenu-run grim slurp wl-copy; do check "$cmd installed" command -v "$cmd"; done
 check 'Hack font installed' sh -c 'fc-list | grep -q Hack'
 for tool in clang ld.lld llc; do check "$tool is version 23 or newer" major_at_least 23 "$tool"; done
+clang_dir=/etc/clang$(clang -dumpversion | cut -d. -f1)
+check 'clang defaults match config/clang.cfg, root 0644' managed config/clang.cfg "$clang_dir/clang.cfg" 644
+check 'clang++ defaults match config/clang.cfg, root 0644' managed config/clang.cfg "$clang_dir/clang++.cfg" 644
+check 'clang builds and runs C with lld and compiler-rt' sh -c 't=$(mktemp) && printf "int main(void){return 0;}\n" | clang -x c - -o "$t" && "$t"; s=$?; rm -f "$t"; exit $s'
+check 'clang++ builds and runs C++' sh -c 't=$(mktemp) && printf "#include <cstdio>\nint main(){std::puts(\"\");}\n" | clang++ -x c++ - -o "$t" && "$t" >/dev/null; s=$?; rm -f "$t"; exit $s'
 check 'linux-lts not installed' sh -c '! apk info -e linux-lts'
 check 'running linux-stable' sh -c 'uname -r | grep -q -- -stable$'
 

@@ -38,6 +38,9 @@ explanation if a check fails. It then:
 
 - installs the packages in `packages.txt` (and `packages-x86_64.txt` on x86_64),
 - switches the device manager to udev with `setup-devd udev`,
+- makes `clang` and `clang++` link with lld, compiler-rt and LLVM libunwind by
+  default through `/etc/clang<major>/clang.cfg` and `clang++.cfg`, so no gcc or
+  binutils is needed (there is no `cc`; use `CC=clang`),
 - builds the pinned dwl 0.9 with clang and lld using `config/dwl.h`, then removes
   the build-only headers,
 - installs `home-session`, the `home-runtime` service, and a tty1 login hook,

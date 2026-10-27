@@ -190,7 +190,7 @@ must "grep -q 'home-session.sh exists and was not installed by home' /root/confl
 must "grep -qx 'echo unmanaged' /etc/profile.d/home-session.sh && cmp /etc/apk/world /root/world.before"
 must 'rm /etc/profile.d/home-session.sh'
 
-managed='/usr/local/bin/dwl /usr/local/bin/home-session /etc/init.d/home-runtime /etc/conf.d/home-runtime /etc/profile.d/home-session.sh'
+managed='/usr/local/bin/dwl /usr/local/bin/home-session /etc/init.d/home-runtime /etc/conf.d/home-runtime /etc/profile.d/home-session.sh /etc/clang*/clang.cfg /etc/clang*/clang++.cfg'
 must 'make -s -C /home/josh/home install USER_NAME=josh > /root/install.log 2>&1 || { cat /root/install.log; false; }' 2400
 must 'make -s -C /home/josh/home verify USER_NAME=josh' 120
 must "stat -c '%n %Y %a' $managed > /root/mtimes && cp /etc/apk/world /root/world.first"

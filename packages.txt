@@ -13,3 +13,5 @@ curl
 clang>=23
 llvm>=23
 lld>=23
+compiler-rt>=23
+llvm-libunwind-dev>=23

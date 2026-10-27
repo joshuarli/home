@@ -81,6 +81,11 @@ printf 'home_user="%s"\n' "$user" > "$conf"
 check_managed config/home-session /usr/local/bin/home-session
 check_managed services/home-runtime /etc/init.d/home-runtime
 check_managed config/profile.sh /etc/profile.d/home-session.sh
+clang_major() { clang -dumpversion | cut -d. -f1; }
+if command -v clang >/dev/null; then
+	check_managed config/clang.cfg "/etc/clang$(clang_major)/clang.cfg"
+	check_managed config/clang.cfg "/etc/clang$(clang_major)/clang++.cfg"
+fi
 if [ -e /etc/conf.d/home-runtime ] && ! cmp -s "$conf" /etc/conf.d/home-runtime; then
 	die "/etc/conf.d/home-runtime configures a different user or was not written by home; remove it to provision $user"
 fi
@@ -117,6 +122,9 @@ apk add --quiet $packages
 
 rc-update show sysinit | awk '$1 == "udev" { found = 1 } END { exit !found }' || setup-devd udev
 
+[ "$(clang_major)" -ge 23 ] || die "clang $(clang -dumpversion) is older than 23; check the edge repositories"
+install_managed config/clang.cfg "/etc/clang$(clang_major)/clang.cfg" 0644
+install_managed config/clang.cfg "/etc/clang$(clang_major)/clang++.cfg" 0644
 sh build/dwl.sh
 install_managed config/home-session /usr/local/bin/home-session 0755
 install_managed services/home-runtime /etc/init.d/home-runtime 0755
