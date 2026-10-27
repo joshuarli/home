@@ -40,11 +40,8 @@ proc must {cmd {limit 300}} {
 proc poll {cmd} { must "for i in \$(seq 90); do $cmd && break; sleep 1; done; $cmd" 120 }
 
 proc monitor {cmd} {
-	send "\x01c"
-	expect "(qemu) "
-	send "$cmd\r"
-	expect "(qemu) "
-	send "\x01c"
+	global work
+	exec sh -c "printf '%s\\n' \"\$1\" | nc -U -w 1 \"\$2\" >/dev/null" monitor $cmd $work/monitor.sock
 }
 
 proc type_tty1 {text} {

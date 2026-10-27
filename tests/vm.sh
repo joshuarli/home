@@ -30,7 +30,7 @@ if [ ! -f "$work/$iso" ]; then
 	mv "$work/$iso.part" "$work/$iso"
 fi
 
-rm -f "$work"/share/* "$work/disk.qcow2" "$work/vars.fd" "$work/desktop.ppm"
+rm -f "$work"/share/* "$work/monitor.sock" "$work/disk.qcow2" "$work/vars.fd" "$work/desktop.ppm"
 git bundle create -q "$work/share/home.bundle" HEAD
 git -C "$usr_repo" bundle create -q "$work/share/usr.bundle" HEAD
 cp tests/answers "$work/share/answers"
@@ -41,6 +41,7 @@ export VM_QEMU="qemu-system-aarch64 -M virt $accel -m 4096 -smp 4 \
 -drive if=pflash,format=raw,readonly=on,file=$firmware -drive if=pflash,format=raw,file=$work/vars.fd \
 -drive file=$work/disk.qcow2,if=virtio -drive file=fat:ro:$work/share,format=raw,if=virtio,readonly=on \
 -nic user,model=virtio-net-pci -device virtio-gpu-pci -device qemu-xhci -device usb-kbd \
--display none -serial mon:stdio"
+-display none -chardev stdio,id=serial,signal=off -serial chardev:serial \
+-monitor unix:$work/monitor.sock,server=on,wait=off"
 export VM_ISO="$work/$iso" VM_WORK="$work"
 exec expect tests/vm.exp
