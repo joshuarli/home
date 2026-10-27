@@ -22,14 +22,14 @@ proc login {} {
 		"# " {}
 		timeout { fail "root login" }
 	}
-	send "PS1='VM# '; stty -echo\r"
+	send "PS1='VM# '; stty -echo -opost\r"
 	expect "VM# "
 }
 
 proc run {cmd {limit 300}} {
 	set timeout $limit
 	send "$cmd; echo RC=\$?\r"
-	expect -re {RC=([0-9]+)\r?\n[^\n]*VM# } { return $expect_out(1,string) } timeout { fail "timed out: $cmd" }
+	expect -re {RC=([0-9]+)\r*\n[^\n]*VM# } { return $expect_out(1,string) } timeout { fail "timed out: $cmd" }
 }
 
 proc must {cmd {limit 300}} {
@@ -73,7 +73,7 @@ expect {
 		exp_continue
 	}
 	-re {ssh key or URL} { send "none\r"; exp_continue }
-	-re {RC=([0-9]+)\r?\n[^\n]*VM# } { if {$expect_out(1,string) != 0} { fail "setup-alpine" } }
+	-re {RC=([0-9]+)\r*\n[^\n]*VM# } { if {$expect_out(1,string) != 0} { fail "setup-alpine" } }
 	timeout { fail "setup-alpine timed out" }
 }
 poweroff
