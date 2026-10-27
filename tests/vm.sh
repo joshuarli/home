@@ -27,6 +27,8 @@ stop_vm() {
 	bridge=
 }
 
+size() { echo $(($(wc -c < "$console"))); }
+
 since() { tail -c "+$(($1 + 1))" "$console"; }
 
 wait_for() {
@@ -43,7 +45,7 @@ wait_for() {
 send() { printf '%s\r' "$1" >&3; }
 
 run() {
-	start=$(wc -c < "$console")
+	start=$(size)
 	printf 'vm: + %s\n' "$1" >&2
 	send "$1; echo RC=\$?:$start:"
 	wait_for "$start" "RC=[0-9]*:$start:" "${2:-300}"
@@ -77,7 +79,7 @@ boot() {
 }
 
 login() {
-	start=$(wc -c < "$console")
+	start=$(size)
 	send root
 	sleep 2
 	! since "$start" | grep -aq 'Password:' || send "$rootpw"
@@ -134,7 +136,7 @@ say 'installing stock Alpine'
 boot -drive "file=$work/$iso,if=virtio,media=cdrom,readonly=on"
 login
 must 'mkdir -p /media/share && mount -t vfat -o ro /dev/vdb1 /media/share'
-start=$(wc -c < "$console")
+start=$(size)
 send 'ERASE_DISKS=/dev/vda setup-alpine -f /media/share/answers; echo SETUP=$?:'
 answered=0
 key_answered=
