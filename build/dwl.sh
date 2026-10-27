@@ -29,6 +29,6 @@ printf '%s  %s\n' "$sha" "$tmp/dwl.tar.gz" | sha256sum -c -s - || {
 }
 tar -xzf "$tmp/dwl.tar.gz" -C "$tmp"
 cp config/dwl.h "$tmp/dwl/config.h"
-make -s -C "$tmp/dwl" CC=clang LDFLAGS=-fuse-ld=lld VERSION="$build_version"
+make -s -C "$tmp/dwl" CC=clang CFLAGS='-O2 -std=gnu23' LDFLAGS=-fuse-ld=lld VERSION="$build_version"
 install -o root -g root -m 0755 "$tmp/dwl/dwl" "$target"
 echo "home: installed $target ($build_version)"
