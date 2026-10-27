@@ -42,13 +42,12 @@ wait_for() {
 
 send() { printf '%s\r' "$1" >&3; }
 
-serial=0
 run() {
-	serial=$((serial + 1))
 	start=$(wc -c < "$console")
-	send "$1; echo RC=\$?:$serial:"
-	wait_for "$start" "RC=[0-9]*:$serial:" "${2:-300}"
-	since "$start" | grep -ao "RC=[0-9]*:$serial:" | head -n 1 | sed 's/RC=\([0-9]*\):.*/\1/'
+	printf 'vm: + %s\n' "$1" >&2
+	send "$1; echo RC=\$?:$start:"
+	wait_for "$start" "RC=[0-9]*:$start:" "${2:-300}"
+	since "$start" | grep -ao "RC=[0-9]*:$start:" | head -n 1 | sed 's/RC=\([0-9]*\):.*/\1/'
 }
 
 must() {
