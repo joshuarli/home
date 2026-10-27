@@ -64,7 +64,7 @@ must() {
 
 poll() { must "for i in \$(seq 90); do $1 && break; sleep 1; done; $1" 120; }
 
-monitor() { printf '%s\n' "$1" | nc -U -w 1 "$work/monitor.sock" >/dev/null; }
+monitor() { { printf '%s\n' "$1"; sleep 1; } | nc -U "$work/monitor.sock" >/dev/null; }
 
 type_tty1() {
 	{
@@ -209,17 +209,19 @@ sleep 3
 type_tty1 josh
 sleep 3
 type_tty1 "$userpw"
-poll 'pgrep -x dwl >/dev/null && pgrep -x foot >/dev/null && pgrep -u josh -x ish >/dev/null'
+poll 'pidof dwl >/dev/null && pidof foot >/dev/null && pidof ish >/dev/null'
 must "test \"\$(stat -c %U /run/user/\$(id -u josh)/wayland-0)\" = josh"
 monitor 'sendkey meta_l-ret'
-poll 'test $(pgrep -x foot | wc -l) -eq 2'
+poll 'test $(pidof foot | wc -w) -eq 2'
 monitor 'sendkey ctrl-ret'
-poll 'test $(pgrep -x foot | wc -l) -eq 3'
+poll 'test $(pidof foot | wc -w) -eq 3'
+monitor 'sendkey shift-ret'
+poll 'pidof bemenu >/dev/null'
 monitor "screendump $work/desktop.ppm"
-must '! pgrep -x Xwayland >/dev/null'
+must '! pidof Xwayland >/dev/null'
 
 say 'session recovery'
-must 'pkill -x dwl'
-poll '! pgrep -x dwl >/dev/null && pgrep -u josh -x ash >/dev/null'
+must 'kill $(pidof dwl)'
+poll '! pidof dwl >/dev/null && ps -o user,tty,args | grep -q "^josh *4,1 *-sh"'
 poweroff
 say PASS
