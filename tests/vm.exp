@@ -59,10 +59,10 @@ proc poweroff {} {
 puts "vm: installing stock Alpine"
 boot "-drive file=$env(VM_ISO),if=virtio,media=cdrom,readonly=on"
 login
-must "mount -t vfat -o ro /dev/vdb1 /mnt"
+must "mkdir -p /media/share && mount -t vfat -o ro /dev/vdb1 /media/share"
 set passwords 0
 set timeout 900
-send "ERASE_DISKS=/dev/vda setup-alpine -f /mnt/answers; echo RC=\$?\r"
+send "ERASE_DISKS=/dev/vda setup-alpine -f /media/share/answers; echo RC=\$?\r"
 expect {
 	-re {(New|Retype) password:} {
 		incr passwords
@@ -79,9 +79,9 @@ poweroff
 puts "vm: provisioning"
 boot ""
 login
-must "mount -t vfat -o ro /dev/vdb1 /mnt"
+must "mkdir -p /media/share && mount -t vfat -o ro /dev/vdb1 /media/share"
 must "apk add -q git make" 600
-must "su josh -c 'cd ~ && git clone -q /mnt/home.bundle home && git clone -q /mnt/usr.bundle usr && git -C usr remote set-url origin https://github.com/joshuarli/usr'"
+must "su josh -c 'cd ~ && git clone -q /media/share/home.bundle home && git clone -q /media/share/usr.bundle usr && git -C usr remote set-url origin https://github.com/joshuarli/usr'"
 must "find /boot /etc/network /etc/fstab /etc/inittab /etc/doas.conf /etc/doas.d /etc/apk/repositories /etc/hostname -type f 2>/dev/null | sort | xargs sha256sum > /root/baseline"
 must "cp /etc/apk/world /root/world.before"
 
