@@ -2,7 +2,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 release=$(sed -n 's/^supported_release=//p' install.sh)
-iso=alpine-standard-3.24.3-aarch64.iso
+iso=alpine-virt-3.24.3-aarch64.iso
 mirror=https://dl-cdn.alpinelinux.org/alpine/v$release/releases/aarch64
 usr_repo=${USR_REPO:-$HOME/usr}
 work=$PWD/.work/vm
