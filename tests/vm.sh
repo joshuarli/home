@@ -12,6 +12,11 @@ console=$work/console.log
 
 fail() {
 	printf 'vm: FAIL: %s (console: %s)\n' "$*" "$console" >&2
+	if [ -n "${diagnose:-}" ] && qemu_running; then
+		send "$diagnose"
+		monitor "screendump $work/failure.ppm"
+		sleep 3
+	fi
 	stop_vm
 	exit 1
 }
@@ -199,6 +204,7 @@ login
 must 'make -s -C /home/josh/home verify USER_NAME=josh' 120
 
 say 'graphical session'
+diagnose='ps -o user,tty,args | grep -v "\\["; tail -20 /run/user/1000/dwl.log'
 sleep 3
 type_tty1 josh
 sleep 3
