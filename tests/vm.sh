@@ -6,10 +6,96 @@ iso=alpine-virt-3.24.3-aarch64.iso
 mirror=https://dl-cdn.alpinelinux.org/alpine/v$release/releases/aarch64
 usr_repo=${USR_REPO:-$HOME/usr}
 work=$PWD/.work/vm
+rootpw=homevmroot
+userpw=homevmuser
+console=$work/console.log
+
+fail() {
+	printf 'vm: FAIL: %s (console: %s)\n' "$*" "$console" >&2
+	stop_vm
+	exit 1
+}
+
+say() { printf 'vm: %s\n' "$*"; }
+
+qemu_running() { [ -f "$work/qemu.pid" ] && kill -0 "$(cat "$work/qemu.pid")" 2>/dev/null; }
+
+stop_vm() {
+	exec 3>&- 2>/dev/null || :
+	! qemu_running || kill "$(cat "$work/qemu.pid")"
+	[ -z "${bridge:-}" ] || kill "$bridge" 2>/dev/null || :
+	bridge=
+}
+
+since() { tail -c "+$(($1 + 1))" "$console"; }
+
+wait_for() {
+	start=$1 pattern=$2 limit=$3
+	while [ "$limit" -gt 0 ]; do
+		since "$start" | grep -aq -- "$pattern" && return 0
+		qemu_running || fail "vm exited while waiting for: $pattern"
+		sleep 1
+		limit=$((limit - 1))
+	done
+	fail "timed out waiting for: $pattern"
+}
+
+send() { printf '%s\r' "$1" >&3; }
+
+serial=0
+run() {
+	serial=$((serial + 1))
+	start=$(wc -c < "$console")
+	send "$1; echo RC=\$?:$serial:"
+	wait_for "$start" "RC=[0-9]*:$serial:" "${2:-300}"
+	since "$start" | grep -ao "RC=[0-9]*:$serial:" | head -n 1 | sed 's/RC=\([0-9]*\):.*/\1/'
+}
+
+must() {
+	rc=$(run "$@")
+	[ "$rc" = 0 ] || fail "exit $rc: $1"
+}
+
+poll() { must "for i in \$(seq 90); do $1 && break; sleep 1; done; $1" 120; }
+
+monitor() { printf '%s\n' "$1" | nc -U -w 1 "$work/monitor.sock" >/dev/null; }
+
+type_tty1() {
+	printf '%s' "$1" | fold -w 1 | while read -r ch; do monitor "sendkey $ch"; done
+	monitor 'sendkey ret'
+}
+
+boot() {
+	rm -f "$work/serial.sock" "$work/qemu.pid" "$work/console.fifo"
+	: > "$console"
+	# shellcheck disable=SC2086
+	$qemu "$@" || fail 'qemu did not start'
+	mkfifo "$work/console.fifo"
+	nc -U "$work/serial.sock" < "$work/console.fifo" >> "$console" &
+	bridge=$!
+	exec 3> "$work/console.fifo"
+	wait_for 0 'login:' 180
+}
+
+login() {
+	start=$(wc -c < "$console")
+	send root
+	sleep 2
+	! since "$start" | grep -aq 'Password:' || send "$rootpw"
+	send "stty -echo; PS1='VM# '"
+	wait_for "$start" 'VM# ' 30
+}
+
+poweroff() {
+	send poweroff
+	i=0
+	while qemu_running && [ "$i" -lt 120 ]; do sleep 1; i=$((i + 1)); done
+	qemu_running && fail 'vm did not power off'
+	stop_vm
+}
 
 [ -z "$(git status --porcelain)" ] || { echo 'vm: commit changes first; the VM provisions HEAD' >&2; exit 1; }
 command -v qemu-system-aarch64 >/dev/null || { echo 'vm: qemu-system-aarch64 is required' >&2; exit 1; }
-command -v expect >/dev/null || { echo 'vm: expect is required' >&2; exit 1; }
 firmware=
 for candidate in "$(dirname "$(command -v qemu-system-aarch64)")/../share/qemu/edk2-aarch64-code.fd" \
 	/usr/share/qemu/edk2-aarch64-code.fd /usr/share/AAVMF/AAVMF_CODE.fd; do
@@ -30,19 +116,87 @@ if [ ! -f "$work/$iso" ]; then
 	mv "$work/$iso.part" "$work/$iso"
 fi
 
-rm -f "$work"/share/* "$work/qemu.log" "$work/monitor.sock" "$work/serial.sock" "$work/qemu.pid" "$work/disk.qcow2" "$work/vars.fd" "$work/desktop.ppm"
+rm -f "$work"/share/* "$work/qemu.log" "$work/monitor.sock" "$work/disk.qcow2" "$work/vars.fd" "$work/desktop.ppm"
 git bundle create -q "$work/share/home.bundle" HEAD
 git -C "$usr_repo" bundle create -q "$work/share/usr.bundle" HEAD
 cp tests/answers "$work/share/answers"
 qemu-img create -q -f qcow2 "$work/disk.qcow2" 8G
 dd if=/dev/zero of="$work/vars.fd" bs=1048576 count=64 2>/dev/null
+trap stop_vm EXIT INT TERM
 
-export VM_QEMU="qemu-system-aarch64 -M virt $accel -m 2048 -smp 2 \
--drive if=pflash,format=raw,readonly=on,file=$firmware -drive if=pflash,format=raw,file=$work/vars.fd \
--drive file=$work/disk.qcow2,if=virtio -drive file=fat:ro:$work/share,format=raw,if=virtio,readonly=on \
--nic user,model=virtio-net-pci -device virtio-gpu-pci -device qemu-xhci -device usb-kbd \
--display none -serial unix:$work/serial.sock,server=on,wait=off -pidfile $work/qemu.pid -daemonize \
--monitor unix:$work/monitor.sock,server=on,wait=off \
--D $work/qemu.log -trace qemu_system_shutdown_request -trace runstate_set"
-export VM_ISO="$work/$iso" VM_WORK="$work"
-exec expect tests/vm.exp
+qemu="qemu-system-aarch64 -M virt $accel -m 2048 -smp 2
+-drive if=pflash,format=raw,readonly=on,file=$firmware -drive if=pflash,format=raw,file=$work/vars.fd
+-drive file=$work/disk.qcow2,if=virtio -drive file=fat:ro:$work/share,format=raw,if=virtio,readonly=on
+-nic user,model=virtio-net-pci -device virtio-gpu-pci -device qemu-xhci -device usb-kbd -display none
+-serial unix:$work/serial.sock,server=on,wait=off -monitor unix:$work/monitor.sock,server=on,wait=off
+-pidfile $work/qemu.pid -daemonize -D $work/qemu.log -trace runstate_set -trace chr_socket_*"
+
+say 'installing stock Alpine'
+boot -drive "file=$work/$iso,if=virtio,media=cdrom,readonly=on"
+login
+must 'mkdir -p /media/share && mount -t vfat -o ro /dev/vdb1 /media/share'
+start=$(wc -c < "$console")
+send 'ERASE_DISKS=/dev/vda setup-alpine -f /media/share/answers; echo SETUP=$?:'
+answered=0
+key_answered=
+until since "$start" | grep -aq 'SETUP=[0-9]*:'; do
+	prompts=$(since "$start" | grep -ao 'New password:\|Retype password:' | wc -l)
+	if [ "$prompts" -gt "$answered" ]; then
+		answered=$((answered + 1))
+		if [ "$answered" -le 2 ]; then send "$rootpw"; else send "$userpw"; fi
+	fi
+	if [ -z "$key_answered" ] && since "$start" | grep -aq 'ssh key or URL'; then send none; key_answered=1; fi
+	qemu_running || fail 'vm exited during setup-alpine'
+	sleep 1
+done
+since "$start" | grep -aq 'SETUP=0:' || fail 'setup-alpine failed'
+poweroff
+
+say 'provisioning'
+boot
+login
+must 'mkdir -p /media/share && mount -t vfat -o ro /dev/vdb1 /media/share'
+must 'apk add -q git make' 600
+must "su josh -c 'cd ~ && git clone -q /media/share/home.bundle home && git clone -q /media/share/usr.bundle usr && git -C usr remote set-url origin https://github.com/joshuarli/usr'"
+must 'find /boot /etc/network /etc/fstab /etc/inittab /etc/doas.conf /etc/doas.d /etc/apk/repositories /etc/hostname -type f 2>/dev/null | sort | xargs sha256sum > /root/baseline'
+must 'cp /etc/apk/world /root/world.before'
+
+must "echo 'echo unmanaged' > /etc/profile.d/home-session.sh"
+[ "$(run 'make -s -C /home/josh/home install USER_NAME=josh > /root/conflict.log 2>&1')" != 0 ] ||
+	fail 'install accepted an unmanaged conflicting file'
+must "grep -q 'home-session.sh exists and was not installed by home' /root/conflict.log"
+must "grep -qx 'echo unmanaged' /etc/profile.d/home-session.sh && cmp /etc/apk/world /root/world.before"
+must 'rm /etc/profile.d/home-session.sh'
+
+managed='/usr/local/bin/dwl /usr/local/bin/home-session /etc/init.d/home-runtime /etc/conf.d/home-runtime /etc/profile.d/home-session.sh'
+must 'make -s -C /home/josh/home install USER_NAME=josh > /root/install.log 2>&1 || { cat /root/install.log; false; }' 2400
+must 'make -s -C /home/josh/home verify USER_NAME=josh' 120
+must "stat -c '%n %Y %a' $managed > /root/mtimes && cp /etc/apk/world /root/world.first"
+must 'make -s -C /home/josh/home install USER_NAME=josh > /root/rerun.log 2>&1 || { cat /root/rerun.log; false; }' 600
+must "! grep -E '^home: (installed|added|cloning)' /root/rerun.log && grep -q 'dwl is current' /root/rerun.log"
+must "stat -c '%n %Y %a' $managed | cmp - /root/mtimes && cmp /etc/apk/world /root/world.first"
+must 'sha256sum -c -s /root/baseline'
+poweroff
+
+say 'booting provisioned system'
+boot
+login
+must 'make -s -C /home/josh/home verify USER_NAME=josh' 120
+
+say 'graphical session'
+type_tty1 josh
+type_tty1 "$userpw"
+poll 'pgrep -x dwl >/dev/null && pgrep -x foot >/dev/null'
+must "test \"\$(stat -c %U /run/user/\$(id -u josh)/wayland-0)\" = josh"
+monitor 'sendkey meta_l-ret'
+poll 'test $(pgrep -x foot | wc -l) -eq 2'
+monitor 'sendkey ctrl-ret'
+poll 'test $(pgrep -x foot | wc -l) -eq 3'
+monitor "screendump $work/desktop.ppm"
+must '! pgrep -x Xwayland >/dev/null'
+
+say 'session recovery'
+must 'pkill -x dwl'
+poll '! pgrep -x dwl >/dev/null && pgrep -u josh -x ash >/dev/null'
+poweroff
+say PASS

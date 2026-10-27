@@ -80,7 +80,7 @@ power management and lid handling.
 
 `make check` runs syntax, shellcheck and package-name checks. `make test-vm`
 installs stock Alpine aarch64 (virt ISO) in QEMU, provisions it twice, reboots, logs in
-on tty1 and checks the desktop. It needs `qemu` and `expect`, and provisions
+on tty1 and checks the desktop. It needs `qemu` and `nc`, and provisions
 the committed `HEAD` of this repository and of `~/usr` (`USR_REPO`).
 
 ## Hardware checklist (XPS 13 9343)
