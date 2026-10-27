@@ -23,7 +23,7 @@ proc boot {extra} {
 	set stty_init "raw -echo"
 	spawn nc -U $work/serial.sock
 	set timeout 180
-	expect "login:" {} eof { fail "serial console closed before login" } timeout { fail "no serial login prompt" }
+	expect "login:" {} eof { fail "serial console closed before login: [wait]" } timeout { fail "no serial login prompt" }
 }
 
 proc login {} {
@@ -42,7 +42,7 @@ proc login {} {
 proc run {cmd {limit 300}} {
 	set timeout $limit
 	send "$cmd; echo RC=\$?\r"
-	expect -re {RC=([0-9]+)\r*\n[^\n]*VM# } { return $expect_out(1,string) } timeout { fail "timed out: $cmd" }
+	expect -re {RC=([0-9]+)\r*\n[^\n]*VM# } { return $expect_out(1,string) } eof { fail "serial console closed: $cmd: [wait]" } timeout { fail "timed out: $cmd" }
 }
 
 proc must {cmd {limit 300}} {
@@ -85,7 +85,7 @@ expect {
 	}
 	-re {ssh key or URL} { send "none\r"; exp_continue }
 	-re {RC=([0-9]+)\r*\n[^\n]*VM# } { if {$expect_out(1,string) != 0} { fail "setup-alpine" } }
-	eof { fail "serial console closed during setup-alpine" }
+	eof { fail "serial console closed during setup-alpine: [wait]" }
 	timeout { fail "setup-alpine timed out" }
 }
 poweroff
