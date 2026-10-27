@@ -21,7 +21,7 @@ say() { printf 'vm: %s\n' "$*"; }
 qemu_running() { [ -f "$work/qemu.pid" ] && kill -0 "$(cat "$work/qemu.pid")" 2>/dev/null; }
 
 stop_vm() {
-	exec 3>&- 2>/dev/null || :
+	exec 3>&-
 	! qemu_running || kill "$(cat "$work/qemu.pid")"
 	[ -z "${bridge:-}" ] || kill "$bridge" 2>/dev/null || :
 	bridge=
@@ -165,7 +165,7 @@ must 'cp /etc/apk/world /root/world.before'
 must "echo 'echo unmanaged' > /etc/profile.d/home-session.sh"
 [ "$(run 'make -s -C /home/josh/home install USER_NAME=josh > /root/conflict.log 2>&1')" != 0 ] ||
 	fail 'install accepted an unmanaged conflicting file'
-must "grep -q 'home-session.sh exists and was not installed by home' /root/conflict.log"
+must "grep -q 'home-session.sh exists and was not installed by home' /root/conflict.log || { cat /root/conflict.log; false; }"
 must "grep -qx 'echo unmanaged' /etc/profile.d/home-session.sh && cmp /etc/apk/world /root/world.before"
 must 'rm /etc/profile.d/home-session.sh'
 
