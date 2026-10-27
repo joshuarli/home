@@ -199,7 +199,9 @@ login
 must 'make -s -C /home/josh/home verify USER_NAME=josh' 120
 
 say 'graphical session'
+sleep 3
 type_tty1 josh
+sleep 3
 type_tty1 "$userpw"
 poll 'pgrep -x dwl >/dev/null && pgrep -x foot >/dev/null && pgrep -u josh -x ish >/dev/null'
 must "test \"\$(stat -c %U /run/user/\$(id -u josh)/wayland-0)\" = josh"
