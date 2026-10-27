@@ -39,7 +39,7 @@ dd if=/dev/zero of="$work/vars.fd" bs=1048576 count=64 2>/dev/null
 
 export VM_QEMU="qemu-system-aarch64 -M virt $accel -m 2048 -smp 2 \
 -drive if=pflash,format=raw,readonly=on,file=$firmware -drive if=pflash,format=raw,file=$work/vars.fd \
--drive file=$work/disk.qcow2,if=virtio -drive file=fat:ro:$work/share,format=raw,if=virtio \
+-drive file=$work/disk.qcow2,if=virtio -drive file=fat:ro:$work/share,format=raw,if=virtio,readonly=on \
 -nic user,model=virtio-net-pci -device virtio-gpu-pci -device qemu-xhci -device usb-kbd \
 -display none -serial mon:stdio"
 export VM_ISO="$work/$iso" VM_WORK="$work"

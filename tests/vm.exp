@@ -10,7 +10,7 @@ proc boot {extra} {
 	global qemu spawn_id
 	eval spawn $qemu $extra
 	set timeout 180
-	expect "login:" {} timeout { fail "no serial login prompt" }
+	expect "login:" {} eof { fail "qemu exited before login" } timeout { fail "no serial login prompt" }
 }
 
 proc login {} {
