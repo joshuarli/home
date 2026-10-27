@@ -17,13 +17,14 @@ proc fail {msg} {
 }
 
 proc boot {extra} {
-	global qemu work spawn_id stty_init
+	global qemu work spawn_id
 	file delete -force $work/serial.sock $work/qemu.pid
 	if {[catch {eval exec $qemu $extra} err]} { fail "qemu did not start: $err" }
-	set stty_init "raw -echo"
-	spawn nc -U $work/serial.sock
+	set console [open "|nc -U $work/serial.sock" r+]
+	fconfigure $console -translation binary -buffering none
+	spawn -open $console
 	set timeout 180
-	expect "login:" {} eof { fail "serial console closed before login: [wait]" } timeout { fail "no serial login prompt" }
+	expect "login:" {} eof { fail "serial console closed before login" } timeout { fail "no serial login prompt" }
 }
 
 proc login {} {
@@ -42,7 +43,7 @@ proc login {} {
 proc run {cmd {limit 300}} {
 	set timeout $limit
 	send "$cmd; echo RC=\$?\r"
-	expect -re {RC=([0-9]+)\r*\n[^\n]*VM# } { return $expect_out(1,string) } eof { fail "serial console closed: $cmd: [wait]" } timeout { fail "timed out: $cmd" }
+	expect -re {RC=([0-9]+)\r*\n[^\n]*VM# } { return $expect_out(1,string) } eof { fail "serial console closed: $cmd" } timeout { fail "timed out: $cmd" }
 }
 
 proc must {cmd {limit 300}} {
@@ -67,7 +68,6 @@ proc poweroff {} {
 	for {set i 0} {$i < 120 && [qemu_running]} {incr i} { after 1000 }
 	if {[qemu_running]} { fail "vm did not power off" }
 	catch close
-	catch wait
 }
 
 puts "vm: installing stock Alpine"
@@ -85,7 +85,7 @@ expect {
 	}
 	-re {ssh key or URL} { send "none\r"; exp_continue }
 	-re {RC=([0-9]+)\r*\n[^\n]*VM# } { if {$expect_out(1,string) != 0} { fail "setup-alpine" } }
-	eof { fail "serial console closed during setup-alpine: [wait]" }
+	eof { fail "serial console closed during setup-alpine" }
 	timeout { fail "setup-alpine timed out" }
 }
 poweroff
