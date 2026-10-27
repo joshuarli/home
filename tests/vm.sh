@@ -192,7 +192,7 @@ must 'make -s -C /home/josh/home verify USER_NAME=josh' 120
 say 'graphical session'
 type_tty1 josh
 type_tty1 "$userpw"
-poll 'pgrep -x dwl >/dev/null && pgrep -x foot >/dev/null'
+poll 'pgrep -x dwl >/dev/null && pgrep -x foot >/dev/null && pgrep -u josh -x ish >/dev/null'
 must "test \"\$(stat -c %U /run/user/\$(id -u josh)/wayland-0)\" = josh"
 monitor 'sendkey meta_l-ret'
 poll 'test $(pgrep -x foot | wc -l) -eq 2'

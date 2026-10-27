@@ -120,5 +120,6 @@ for service in seatd home-runtime; do
 done
 
 as_user 'make -s -C usr links >/dev/null' || die "linking dotfiles from $home/usr failed"
+as_user 'make -s -C usr tools TOOLS=ish' || die "installing ish from $home/usr failed"
 
 say "provisioned. Log out, then log in as $user on tty1. Run: doas make verify USER_NAME=$user"

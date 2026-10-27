@@ -40,6 +40,8 @@ check "$user has a password" sh -c "awk -F: '\$1 == \"$user\" { exit !(\$2 ~ /^\
 check 'no getty autologin' no_match -- '--autologin|[[:space:]]-a[[:space:]]' /etc/inittab
 check 'no passwordless doas' sh -c '! cat /etc/doas.conf /etc/doas.d/*.conf 2>/dev/null | sed "s/#.*//" | grep -qw nopass'
 
+check "ish installed for $user" test -x "$home/.local/bin/ish"
+check 'sudo not installed' sh -c '! apk info -e sudo'
 check "$home/usr dotfiles linked" sh -c "su -s /bin/sh '$user' -c 'cd ~ && make -s -C usr plan' | awk '/^(LINK|CONFLICT|PRUNE)/ { found = 1 } END { exit found }'"
 
 if [ "$failures" -ne 0 ]; then

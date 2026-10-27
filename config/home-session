@@ -6,7 +6,7 @@ if [ ! -d "$runtime" ] || [ -L "$runtime" ] || [ "$(stat -c %u:%a "$runtime")" !
 	echo "home-session: $runtime is missing or not private; run: doas rc-service home-runtime restart" >&2
 	exit 1
 fi
-export XDG_RUNTIME_DIR="$runtime" XDG_SESSION_TYPE=wayland
+export XDG_RUNTIME_DIR="$runtime" XDG_SESSION_TYPE=wayland PATH="$HOME/.local/bin:$PATH"
 unset DISPLAY
 log=$runtime/dwl.log
 status=0

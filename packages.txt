@@ -9,3 +9,4 @@ bemenu
 grim
 slurp
 wl-clipboard
+curl

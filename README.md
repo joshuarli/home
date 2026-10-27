@@ -33,9 +33,12 @@ explanation if a check fails. It then:
 - installs `home-session`, the `home-runtime` service, and a tty1 login hook,
 - adds the user to the `seat` group and starts `seatd` and `home-runtime`,
 - clones https://github.com/joshuarli/usr to `~/usr` if absent and runs its
-  `make links` as the user. It does not run `~/usr`'s `dl` or `setup-linux`.
+  `make links` and `make tools TOOLS=ish` as the user. It does not run the rest
+  of `~/usr`'s `dl` or its `setup-linux`.
 
-Log out, then log in on tty1. dwl starts with a foot terminal.
+Log out, then log in on tty1. dwl starts with a foot terminal running ish.
+The login shell stays `/bin/ash`: ish has no `-c` command mode and reads no
+profile, so it cannot serve ssh commands or start the desktop.
 
 | Keys | Action |
 | --- | --- |
