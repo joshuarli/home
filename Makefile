@@ -1,8 +1,10 @@
-.PHONY: install verify check
+.PHONY: install verify check test-vm
 USER_NAME ?=
 install:
 	USER_NAME='$(USER_NAME)' sh ./install.sh
 verify:
 	USER_NAME='$(USER_NAME)' sh ./verify.sh
 check:
-	sh -n install.sh verify.sh build/dwl.sh config/home-session
+	sh tests/static.sh
+test-vm:
+	sh tests/vm.sh

@@ -1,0 +1,18 @@
+KEYMAPOPTS=none
+HOSTNAMEOPTS=homevm
+DEVDOPTS=mdev
+INTERFACESOPTS="auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+"
+TIMEZONEOPTS="UTC"
+PROXYOPTS=none
+APKREPOSOPTS="-c https://dl-cdn.alpinelinux.org/alpine/v3.24/main"
+USEROPTS="-a -f josh josh"
+SSHDOPTS=none
+NTPOPTS=none
+DISKOPTS="-m sys /dev/vda"
+LBUOPTS=none
+APKCACHEOPTS=none

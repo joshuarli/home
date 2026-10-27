@@ -1,29 +1,96 @@
 # home
 
-Minimal post-install provisioning for a **stock Alpine Linux** machine (x86_64).
-This is not an installer, disk image, or distribution.
+Post-install provisioner that turns a stock Alpine Linux 3.24 install into a
+minimal dwl + foot desktop. It is not an installer, image, or distribution.
+The target is a Dell XPS 13 9343 (x86_64); aarch64 is supported for VM testing.
 
-Install Alpine using its official `setup-alpine` procedure first, including
-disk layout, bootloader, networking, an administrator account with a password,
-and any desired full-disk encryption. Boot the installed system.
+## 1. Install Alpine
+
+Boot the official Alpine 3.24 `standard` ISO and run `setup-alpine`. Choose:
+
+- a `sys` disk install (diskless and data modes are rejected),
+- networking, which this project never touches,
+- the `community` repository (`setup-apkrepos -c`), with no `edge` or `testing` repositories,
+- an admin user with a password (`setup-user -a`), which configures doas for `wheel`.
+
+Reboot into the installed system and log in as that user.
+
+## 2. Provision
 
 ```sh
-apk add git make doas
+doas apk add git make
 git clone https://github.com/joshuarli/home
 cd home
 doas make install USER_NAME="$(id -un)"
 ```
 
-If using a root shell instead, specify `USER_NAME=yourlogin` explicitly.
-The target user must already exist and have a nonempty password hash.
-`make install` intentionally does **not** configure doas, authentication,
-networking, partitions, bootloaders, kernel hooks, or encryption.
+`make install` checks the system before changing anything and stops with an
+explanation if a check fails. It then:
 
-After installation, log in on tty1 to start dwl and foot. Ctrl+Return
-opens another foot terminal. Other TTYs remain normal login consoles.
-Use `HOME_SESSION_DISABLE=1` to bypass session startup.
-Run `doas make verify USER_NAME=yourlogin` to inspect the installation.
-Re-running installation updates managed files and packages.
+- installs the packages in `packages.txt` (and `packages-x86_64.txt` on x86_64),
+- switches the device manager to udev with `setup-devd udev`,
+- builds the pinned dwl 0.8 with `config/dwl.h`, then removes the build toolchain,
+- installs `home-session`, the `home-runtime` service, and a tty1 login hook,
+- adds the user to the `seat` group and starts `seatd` and `home-runtime`,
+- clones https://github.com/joshuarli/usr to `~/usr` if absent and runs its
+  `make links` as the user. It does not run `~/usr`'s `dl` or `setup-linux`.
 
-This is a prototype. Verify the physical Dell XPS 13 9343's Wi-Fi, i915,
-keyboard, touchpad, suspend/resume and power management separately.
+Log out, then log in on tty1. dwl starts with a foot terminal.
+
+| Keys | Action |
+| --- | --- |
+| Super+Return, Ctrl+Return | foot |
+| Shift+Return | bemenu-run |
+| Super+p | screenshot a region to the clipboard |
+| Super+k | close window |
+| Super+m | fullscreen |
+| Super+f | toggle floating |
+| Super+e | toggle previous layout |
+| Super+j | focus next window |
+| Super+1..5, Super+Shift+1..5 | view tag, move window to tag |
+| Super+Escape | quit dwl |
+
+## 3. Verify
+
+```sh
+doas make verify USER_NAME="$(id -un)"
+```
+
+## 4. Recover
+
+Quitting or crashing dwl returns tty1 to a normal shell; the exit status and
+log path (`/run/user/$UID/dwl.log`) are printed. tty2 to tty6 are ordinary
+logins (Ctrl+Alt+F2). The desktop starts only for an interactive tty1 login of
+a `seat` member, so `doas delgroup "$USER" seat` disables it.
+
+## 5. Reapply
+
+Pull or edit this checkout and run `doas make install USER_NAME=...` again.
+Unchanged files are left alone and dwl is rebuilt only when `build/dwl.sh` or
+`config/dwl.h` changes. A managed path holding something home did not install
+stops the run; move it aside or merge it, then rerun.
+
+## Not managed
+
+Disks, partitions, filesystems, encryption, bootloader, kernel, initramfs, EFI,
+Secure Boot, networking, DNS, passwords, doas policy, root account, audio,
+power management and lid handling.
+
+## Development
+
+`make check` runs syntax, shellcheck and package-name checks. `make test-vm`
+installs stock Alpine aarch64 in QEMU, provisions it twice, reboots, logs in
+on tty1 and checks the desktop. It needs `qemu` and `expect`, and provisions
+the committed `HEAD` of this repository and of `~/usr` (`USR_REPO`).
+
+## Hardware checklist (XPS 13 9343)
+
+The VM test does not cover these. Check them after provisioning the laptop.
+
+- [ ] Wi-Fi comes up after reboot with udev (a past mdev-to-eudev switch lost
+      the interface until `iwlwifi` was listed in `/etc/modules`).
+- [ ] i915 drives the panel; dwl starts on tty1 without errors in `dwl.log`.
+- [ ] Keyboard, including Super bindings, and touchpad tap and two-finger scroll.
+- [ ] Ctrl+Alt+F2 reaches a login and Ctrl+Alt+F1 returns to dwl.
+- [ ] Super+p screenshot lands in the clipboard.
+- [ ] Brightness, suspend and resume (not managed; note what is missing).

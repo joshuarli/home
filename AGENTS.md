@@ -2,9 +2,10 @@
 
 Stock Alpine post-install provisioner, not an ISO or OS distribution.
 
-- Keep POSIX sh, apk, OpenRC, seatd, eudev, dwl and foot.
-- Never manage disks, bootloaders, kernel hooks, passwords, doas policy or networking.
-- No autologin or passwordless privilege escalation.
-- Keep installation repeatable, fail on conflicting unmanaged files.
-- Verify shell syntax with `make check`.
-- Hardware testing is distinct from VM smoke testing.
+- Keep POSIX sh, apk, OpenRC, seatd, udev, dwl and foot. No display manager, XWayland, D-Bus or session daemons.
+- Never manage disks, bootloaders, kernels, initramfs, passwords, doas policy or networking.
+- No autologin or passwordless privilege escalation; seat access comes from seatd's `seat` group only.
+- User dotfiles belong to `~/usr`; home only clones it and runs `make links`.
+- Check everything before the first change. A managed path whose content is not a committed version of its source is a conflict.
+- Reruns must not rewrite unchanged files; dwl rebuilds only when its build id changes.
+- Verify with `make check`; run `make test-vm` for behavior changes. Hardware testing is separate from the VM test.

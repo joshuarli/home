@@ -1,10 +1,17 @@
 #!/bin/sh
 set -eu
-[ "$(tty 2>/dev/null || :)" = /dev/tty1 ] || exit 0
 uid=$(id -u)
 runtime=/run/user/$uid
-[ -d "$runtime" ] && [ ! -L "$runtime" ] || exit 1
-[ "$(stat -c '%u:%a' "$runtime")" = "$uid:700" ] || exit 1
+if [ ! -d "$runtime" ] || [ -L "$runtime" ] || [ "$(stat -c %u:%a "$runtime")" != "$uid:700" ]; then
+	echo "home-session: $runtime is missing or not private; run: doas rc-service home-runtime restart" >&2
+	exit 1
+fi
 export XDG_RUNTIME_DIR="$runtime" XDG_SESSION_TYPE=wayland
 unset DISPLAY
-exec /usr/local/bin/dwl -s '/usr/bin/foot <&-'
+log=$runtime/dwl.log
+status=0
+/usr/local/bin/dwl -s 'foot <&-' >"$log" 2>&1 || status=$?
+if [ "$status" -ne 0 ]; then
+	echo "home-session: dwl exited with status $status; see $log" >&2
+	exit "$status"
+fi

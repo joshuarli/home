@@ -1,0 +1,125 @@
+set qemu [split $env(VM_QEMU)]
+set work $env(VM_WORK)
+set rootpw homevmroot
+set userpw homevmuser
+log_file -noappend $work/vm.log
+
+proc fail {msg} { puts "\nvm: FAIL: $msg"; exit 1 }
+
+proc boot {extra} {
+	global qemu spawn_id
+	eval spawn $qemu $extra
+	set timeout 180
+	expect "login:" {} timeout { fail "no serial login prompt" }
+}
+
+proc login {} {
+	global rootpw
+	set timeout 30
+	send "root\r"
+	expect {
+		"Password:" { send "$rootpw\r"; exp_continue }
+		"# " {}
+		timeout { fail "root login" }
+	}
+	send "PS1='VM# '; stty -echo\r"
+	expect "VM# "
+}
+
+proc run {cmd {limit 300}} {
+	set timeout $limit
+	send "$cmd; echo RC=\$?\r"
+	expect -re {RC=([0-9]+)\r?\nVM# } { return $expect_out(1,string) } timeout { fail "timed out: $cmd" }
+}
+
+proc must {cmd {limit 300}} {
+	set rc [run $cmd $limit]
+	if {$rc != 0} { fail "exit $rc: $cmd" }
+}
+
+proc poll {cmd} { must "for i in \$(seq 90); do $cmd && break; sleep 1; done; $cmd" 120 }
+
+proc monitor {cmd} {
+	send "\x01c"
+	expect "(qemu) "
+	send "$cmd\r"
+	expect "(qemu) "
+	send "\x01c"
+}
+
+proc type_tty1 {text} {
+	foreach ch [split $text ""] { monitor "sendkey $ch" }
+	monitor "sendkey ret"
+}
+
+proc poweroff {} {
+	set timeout 120
+	send "poweroff\r"
+	expect eof
+	wait
+}
+
+puts "vm: installing stock Alpine"
+boot "-drive file=$env(VM_ISO),if=virtio,media=cdrom,readonly=on"
+login
+must "mount -t vfat -o ro /dev/vdb1 /mnt"
+set passwords 0
+set timeout 900
+send "ERASE_DISKS=/dev/vda setup-alpine -f /mnt/answers; echo RC=\$?\r"
+expect {
+	-re {(New|Retype) password:} {
+		incr passwords
+		if {$passwords <= 2} { send "$rootpw\r" } else { send "$userpw\r" }
+		exp_continue
+	}
+	-re {ssh key or URL} { send "none\r"; exp_continue }
+	-re {RC=([0-9]+)\r?\nVM# } { if {$expect_out(1,string) != 0} { fail "setup-alpine" } }
+	timeout { fail "setup-alpine timed out" }
+}
+poweroff
+
+puts "vm: provisioning"
+boot ""
+login
+must "mount -t vfat -o ro /dev/vdb1 /mnt"
+must "apk add -q git make" 600
+must "su josh -c 'cd ~ && git clone -q /mnt/home.bundle home && git clone -q /mnt/usr.bundle usr && git -C usr remote set-url origin https://github.com/joshuarli/usr'"
+must "find /boot /etc/network /etc/fstab /etc/inittab /etc/doas.conf /etc/doas.d /etc/apk/repositories /etc/hostname -type f 2>/dev/null | sort | xargs sha256sum > /root/baseline"
+must "cp /etc/apk/world /root/world.before"
+
+must "echo 'echo unmanaged' > /etc/profile.d/home-session.sh"
+if {[run "make -s -C /home/josh/home install USER_NAME=josh > /root/conflict.log 2>&1"] == 0} { fail "install accepted an unmanaged conflicting file" }
+must "grep -q 'home-session.sh exists and was not installed by home' /root/conflict.log"
+must "grep -qx 'echo unmanaged' /etc/profile.d/home-session.sh && cmp /etc/apk/world /root/world.before"
+must "rm /etc/profile.d/home-session.sh"
+
+must "make -s -C /home/josh/home install USER_NAME=josh > /root/install.log 2>&1 || { cat /root/install.log; false; }" 2400
+must "make -s -C /home/josh/home verify USER_NAME=josh" 120
+must "stat -c '%n %Y %a' /usr/local/bin/dwl /usr/local/bin/home-session /etc/init.d/home-runtime /etc/conf.d/home-runtime /etc/profile.d/home-session.sh > /root/mtimes && cp /etc/apk/world /root/world.first"
+must "make -s -C /home/josh/home install USER_NAME=josh > /root/rerun.log 2>&1 || { cat /root/rerun.log; false; }" 600
+must "! grep -E '^home: (installed|added|cloning)' /root/rerun.log && grep -q 'dwl is current' /root/rerun.log"
+must "stat -c '%n %Y %a' /usr/local/bin/dwl /usr/local/bin/home-session /etc/init.d/home-runtime /etc/conf.d/home-runtime /etc/profile.d/home-session.sh | cmp - /root/mtimes && cmp /etc/apk/world /root/world.first"
+must "sha256sum -c -s /root/baseline"
+poweroff
+
+puts "vm: booting provisioned system"
+boot ""
+login
+must "make -s -C /home/josh/home verify USER_NAME=josh" 120
+
+puts "vm: graphical session"
+type_tty1 josh
+type_tty1 $userpw
+poll "pgrep -x dwl >/dev/null && pgrep -x foot >/dev/null"
+monitor "sendkey meta_l-ret"
+poll "test \$(pgrep -x foot | wc -l) -eq 2"
+monitor "sendkey ctrl-ret"
+poll "test \$(pgrep -x foot | wc -l) -eq 3"
+monitor "screendump $work/desktop.ppm"
+must "! pgrep -x Xwayland >/dev/null"
+
+puts "vm: session recovery"
+must "pkill -x dwl"
+poll "! pgrep -x dwl >/dev/null && pgrep -u josh -x ash >/dev/null"
+poweroff
+puts "vm: PASS"
