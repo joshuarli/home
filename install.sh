@@ -2,7 +2,6 @@
 set -eu
 cd "$(dirname "$0")"
 
-supported_release=3.24
 usr_url=https://github.com/joshuarli/usr
 
 die() { printf 'home: %s\n' "$*" >&2; exit 1; }
@@ -11,10 +10,10 @@ say() { printf 'home: %s\n' "$*"; }
 as_user() { su -s /bin/sh "$user" -c "cd ~ && $1"; }
 
 matches_committed() {
-	for rev in $(git -c safe.directory="$PWD" log --format=%H -- "$1"); do
-		git -c safe.directory="$PWD" show "$rev:$1" 2>/dev/null | cmp -s - "$2" && return 0
-	done
-	return 1
+	git -c safe.directory="$PWD" log --follow --format=%H --name-only -- "$1" | awk NF |
+		while read -r rev && read -r path; do
+			git -c safe.directory="$PWD" show "$rev:$path" 2>/dev/null | cmp -s - "$2" && exit 0
+		done
 }
 
 check_managed() {
@@ -37,14 +36,18 @@ install_managed() {
 [ -r /etc/os-release ] && . /etc/os-release
 [ "${ID:-}" = alpine ] || die 'this provisioner supports only Alpine Linux'
 case ${VERSION_ID:-} in
-	"$supported_release" | "$supported_release".*) ;;
-	*) die "Alpine ${VERSION_ID:-unknown} is not supported; this provisioner targets Alpine $supported_release" ;;
+	*_alpha* | *_git*) ;;
+	*) die "Alpine ${VERSION_ID:-unknown} is a stable release; this provisioner targets edge (see README)" ;;
 esac
 arch=$(apk --print-arch)
 case $arch in x86_64 | aarch64) ;; *) die "architecture $arch is not supported" ;; esac
 rootfs=$(awk '$2 == "/" { t = $3 } END { print t }' /proc/mounts)
 case $rootfs in tmpfs | ramfs | '') die "root filesystem is $rootfs; install Alpine to disk (sys mode) first" ;; esac
 command -v git >/dev/null && command -v make >/dev/null || die 'git and make are required: apk add git make'
+[ "$(git -c safe.directory="$PWD" rev-parse --is-shallow-repository)" = false ] ||
+	die 'this checkout is shallow; home recognizes its installed files from full history: git fetch --unshallow'
+! apk info -e linux-lts >/dev/null 2>&1 ||
+	die 'linux-lts is installed; this desktop runs linux-stable: apk add linux-stable && apk del linux-lts, then reboot'
 
 user=${USER_NAME:-}
 [ -n "$user" ] || die 'set USER_NAME to the desktop login, for example: doas make install USER_NAME="$(id -un)"'
@@ -62,16 +65,18 @@ case $hash in '$'*) ;; *) die "user $user has no usable password; set one with: 
 
 [ -s /etc/apk/repositories ] || die '/etc/apk/repositories is empty; run setup-apkrepos'
 repos=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' /etc/apk/repositories)
-case $repos in */edge/* | */testing*) die "remove edge and testing repositories; this provisioner targets Alpine v$supported_release" ;; esac
-printf '%s\n' "$repos" | grep -q "/v$supported_release/community/*\$" ||
-	die "enable the v$supported_release community repository: setup-apkrepos -c"
+printf '%s\n' "$repos" | grep -Eqv '/edge/(main|community)/*$' &&
+	die "only edge main and community repositories are supported; remove the others from /etc/apk/repositories"
+printf '%s\n' "$repos" | grep -q '/edge/community/*$' ||
+	die 'enable the edge community repository in /etc/apk/repositories'
 
 for script in install.sh verify.sh build/dwl.sh config/home-session config/profile.sh services/home-runtime; do
 	sh -n "$script" || die "$script has a syntax error"
 done
 
 conf=$(mktemp)
-trap 'rm -f "$conf"' EXIT HUP INT TERM
+usr_staging=
+trap 'rm -f "$conf"; [ -z "$usr_staging" ] || rm -rf "$usr_staging"' EXIT HUP INT TERM
 printf 'home_user="%s"\n' "$user" > "$conf"
 check_managed config/home-session /usr/local/bin/home-session
 check_managed services/home-runtime /etc/init.d/home-runtime
@@ -96,12 +101,14 @@ fi
 say 'checking network and repositories'
 apk update --quiet || die 'apk update failed; check networking and /etc/apk/repositories'
 
-if [ ! -e "$home/usr" ]; then
-	say "cloning $usr_url into $home/usr"
-	as_user "git clone --quiet $usr_url usr" || die "could not clone $usr_url"
+usr_checkout=$home/usr
+if [ ! -e "$usr_checkout" ]; then
+	usr_staging=$(as_user 'mktemp -d "$HOME/.usr.XXXXXX"') || die "could not create a staging directory in $home"
+	as_user "git clone --quiet $usr_url '$usr_staging'" || die "could not clone $usr_url"
+	usr_checkout=$usr_staging
 fi
-as_user 'make -s -C usr plan >/dev/null' ||
-	die "dotfile links conflict with existing files; run make -C ~/usr plan as $user and resolve each CONFLICT"
+as_user "make -s -C '$usr_checkout' plan >/dev/null" ||
+	die "dotfile links conflict with existing files; run make -C $usr_checkout plan as $user and resolve each CONFLICT"
 
 packages=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' packages.txt)
 [ ! -f "packages-$arch.txt" ] || packages="$packages $(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "packages-$arch.txt")"
@@ -122,7 +129,12 @@ for service in seatd home-runtime; do
 	rc-service --ifstopped "$service" start
 done
 
+if [ -n "$usr_staging" ]; then
+	as_user "mv '$usr_staging' usr" || die "could not move the ~/usr checkout into place"
+	usr_staging=
+	say "cloned $usr_url into $home/usr"
+fi
 as_user 'make -s -C usr links >/dev/null' || die "linking dotfiles from $home/usr failed"
-as_user 'make -s -C usr tools TOOLS=ish' || die "installing ish from $home/usr failed"
+[ -x "$home/.local/bin/ish" ] || as_user 'make -s -C usr tools TOOLS=ish' || die "installing ish from $home/usr failed"
 
 say "provisioned. Log out, then log in as $user on tty1. Run: doas make verify USER_NAME=$user"

@@ -1,16 +1,23 @@
 # home
 
-Post-install provisioner that turns a stock Alpine Linux 3.24 install into a
-minimal dwl + foot desktop. It is not an installer, image, or distribution.
+Post-install provisioner that turns a stock Alpine Linux edge install with
+`linux-stable` into a minimal dwl + foot desktop with LLVM/clang 23 or newer. It is not an installer, image, or distribution.
 The target is a Dell XPS 13 9343 (x86_64); aarch64 is supported for VM testing.
 
 ## 1. Install Alpine
 
-Boot the official Alpine 3.24 `standard` ISO and run `setup-alpine`. Choose:
+Alpine publishes no edge ISO. Boot the official Alpine 3.24 `standard` ISO and
+install edge with the `linux-stable` kernel directly:
 
-- a `sys` disk install (diskless and data modes are rejected),
+```sh
+edge=https://dl-cdn.alpinelinux.org/alpine/edge
+APKREPOSOPTS="$edge/main $edge/community" DISKOPTS="-m sys -k stable" setup-alpine
+```
+
+Choose:
+
+- a disk for the `sys` install (diskless and data modes are rejected),
 - networking, which this project never touches,
-- the `community` repository (`setup-apkrepos -c`), with no `edge` or `testing` repositories,
 - an admin user with a password (`setup-user -a`), which configures doas for `wheel`.
 - no getty on `tty0` in `/etc/inittab` (installs booted with a VT `console=`,
   such as the virt ISO, add one, and it splits tty1 keystrokes with the login).
@@ -31,7 +38,8 @@ explanation if a check fails. It then:
 
 - installs the packages in `packages.txt` (and `packages-x86_64.txt` on x86_64),
 - switches the device manager to udev with `setup-devd udev`,
-- builds the pinned dwl 0.8 with `config/dwl.h`, then removes the build toolchain,
+- builds the pinned dwl 0.9 with clang and lld using `config/dwl.h`, then removes
+  the build-only headers,
 - installs `home-session`, the `home-runtime` service, and a tty1 login hook,
 - adds the user to the `seat` group and starts `seatd` and `home-runtime`,
 - clones https://github.com/joshuarli/usr to `~/usr` if absent and runs its
@@ -71,29 +79,37 @@ a `seat` member, so `doas delgroup "$USER" seat` disables it.
 ## 5. Reapply
 
 Pull or edit this checkout and run `doas make install USER_NAME=...` again.
-Unchanged files are left alone and dwl is rebuilt only when `build/dwl.sh` or
-`config/dwl.h` changes. A managed path holding something home did not install
+Unchanged files are left alone, dwl is rebuilt only when `build/dwl.sh` or
+`config/dwl.h` changes, and ish is installed only if missing (update it with
+`~/usr`'s own `make`). A managed path holding something home did not install
 stops the run; move it aside or merge it, then rerun.
+
+home recognizes files it installed by comparing them with every committed
+version of their source, so it needs a full clone; a shallow clone is refused.
+Packages follow the edge repositories, so reruns can upgrade them.
 
 ## Not managed
 
 Disks, partitions, filesystems, encryption, bootloader, kernel, initramfs, EFI,
 Secure Boot, networking, DNS, passwords, doas policy, root account, audio,
-power management and lid handling.
+power management and lid handling. The kernel flavor is chosen at install
+time; home refuses to run while `linux-lts` is installed.
 
 ## Development
 
 `make check` runs syntax, shellcheck and package-name checks. `make test-vm`
-installs stock Alpine aarch64 (virt ISO) in QEMU, provisions it twice, reboots, logs in
-on tty1 and checks the desktop. It needs `qemu` and `nc`, and provisions
+installs Alpine edge with `linux-stable` on aarch64 from the virt ISO in QEMU,
+provisions it twice, reboots, logs in on tty1 and checks the desktop. It needs `qemu` and `nc`, and provisions
 the committed `HEAD` of this repository and of `~/usr` (`USR_REPO`).
 
 ## Hardware checklist (XPS 13 9343)
 
 The VM test does not cover these. Check them after provisioning the laptop.
 
-- [ ] Wi-Fi comes up after reboot with udev (a past mdev-to-eudev switch lost
-      the interface until `iwlwifi` was listed in `/etc/modules`).
+- [ ] Wi-Fi comes up after reboot on edge with `linux-stable` and udev. Edge
+      broke XPS Wi-Fi once before, and a past mdev-to-eudev switch lost the
+      interface until `iwlwifi` was listed in `/etc/modules`.
+- [ ] `intel-ucode` is applied at boot (`dmesg | grep microcode`).
 - [ ] i915 drives the panel; dwl starts on tty1 without errors in `dwl.log`.
 - [ ] Keyboard, including Super bindings, and touchpad tap and two-finger scroll.
 - [ ] dwl renders with GLES on i915 (the VM test forces the pixman renderer).

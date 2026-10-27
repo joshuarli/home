@@ -1,9 +1,9 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-release=$(sed -n 's/^supported_release=//p' install.sh)
 iso=alpine-virt-3.24.3-aarch64.iso
-mirror=https://dl-cdn.alpinelinux.org/alpine/v$release/releases/aarch64
+mirror=https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64
+edge=https://dl-cdn.alpinelinux.org/alpine/edge
 usr_repo=${USR_REPO:-$HOME/usr}
 work=$PWD/.work/vm
 rootpw=homevmroot
@@ -73,6 +73,8 @@ type_tty1() {
 		sleep 1
 	} | nc -U "$work/monitor.sock" >/dev/null
 }
+
+tty1_prompt() { poll "tr -s ' ' < /dev/vcs1 | sed 's/ *\$//' | grep -q '$1\$'"; }
 
 boot() {
 	rm -f "$work/serial.sock" "$work/qemu.pid" "$work/console.fifo"
@@ -145,7 +147,7 @@ boot -drive "file=$work/$iso,if=virtio,media=cdrom,readonly=on"
 login
 must 'mkdir -p /media/share && mount -t vfat -o ro /dev/vdb1 /media/share'
 start=$(size)
-send 'ERASE_DISKS=/dev/vda setup-alpine -f /media/share/answers; echo SETUP=$?:'
+send "APKREPOSOPTS='$edge/main $edge/community' DISKOPTS='-m sys -k stable /dev/vda' ERASE_DISKS=/dev/vda setup-alpine -f /media/share/answers; echo SETUP=\$?:"
 answered=0
 key_answered=
 until since "$start" | grep -aq 'SETUP=[0-9]*:'; do
@@ -193,7 +195,7 @@ must 'make -s -C /home/josh/home install USER_NAME=josh > /root/install.log 2>&1
 must 'make -s -C /home/josh/home verify USER_NAME=josh' 120
 must "stat -c '%n %Y %a' $managed > /root/mtimes && cp /etc/apk/world /root/world.first"
 must 'make -s -C /home/josh/home install USER_NAME=josh > /root/rerun.log 2>&1 || { cat /root/rerun.log; false; }' 600
-must "! grep -E '^home: (installed|added|cloning)' /root/rerun.log && grep -q 'dwl is current' /root/rerun.log"
+must "! grep -E '^home: (installed|added|cloned)' /root/rerun.log && grep -q 'dwl is current' /root/rerun.log"
 must "stat -c '%n %Y %a' $managed | cmp - /root/mtimes && cmp /etc/apk/world /root/world.first"
 must 'sha256sum -c -s /root/baseline'
 poweroff
@@ -205,9 +207,9 @@ must 'make -s -C /home/josh/home verify USER_NAME=josh' 120
 
 say 'graphical session'
 diagnose='ps -o user,tty,args | grep -v "\\["; tail -20 /run/user/1000/dwl.log'
-sleep 3
+tty1_prompt 'login:'
 type_tty1 josh
-sleep 3
+tty1_prompt 'Password:'
 type_tty1 "$userpw"
 poll 'pidof dwl >/dev/null && pidof foot >/dev/null && pidof ish >/dev/null'
 must "test \"\$(stat -c %U /run/user/\$(id -u josh)/wayland-0)\" = josh"

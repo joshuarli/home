@@ -1,6 +1,6 @@
 seatd
 seatd-openrc
-wlroots0.19
+wlroots0.20
 mesa-dri-gallium
 xkeyboard-config
 foot
@@ -10,3 +10,6 @@ grim
 slurp
 wl-clipboard
 curl
+clang>=23
+llvm>=23
+lld>=23

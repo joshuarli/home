@@ -1,7 +1,6 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-release=$(sed -n 's/^supported_release=//p' install.sh)
 scripts='install.sh verify.sh build/dwl.sh config/home-session config/profile.sh tests/static.sh tests/vm.sh'
 services=services/home-runtime
 
@@ -16,18 +15,37 @@ else
 	echo 'static: shellcheck not installed, skipped' >&2
 fi
 
-index=.work/tmp/apkindex
+provided() {
+	awk -v want="$1" -v min="$2" '
+		function ok(version) { return min == "" || version + 0 >= min }
+		/^P:/ { name = substr($0, 3) }
+		/^V:/ { version = substr($0, 3) }
+		/^p:/ {
+			n = split(substr($0, 3), provides, " ")
+			for (i = 1; i <= n; i++) {
+				split(provides[i], pair, "=")
+				if (pair[1] == want && ok(pair[2])) found = 1
+			}
+		}
+		/^$/ { if (name == want && ok(version)) found = 1; name = version = "" }
+		END { if (name == want && ok(version)) found = 1; exit !found }
+	' "$3"
+}
+
+index=.work/tmp/apkindex-edge
 for arch in x86_64 aarch64; do
+	mkdir -p "$index"
 	for repo in main community; do
-		mkdir -p "$index/$arch-$repo"
-		[ -s "$index/$arch-$repo/APKINDEX" ] ||
-			curl -fsS "https://dl-cdn.alpinelinux.org/alpine/v$release/$repo/$arch/APKINDEX.tar.gz" |
-			tar -xzf - -C "$index/$arch-$repo" APKINDEX
-	done
-	wanted=$(cat packages.txt "packages-$arch.txt" 2>/dev/null | sed -e 's/#.*//' -e '/^[[:space:]]*$/d')
-	missing=$(printf '%s\n' "$wanted" | while read -r package; do
-		cat "$index/$arch"-*/APKINDEX | grep -qx "P:$package" || echo "$package"
-	done)
-	[ -z "$missing" ] || { printf 'static: missing from Alpine v%s %s: %s\n' "$release" "$arch" "$missing" >&2; exit 1; }
+		curl -fsS "https://dl-cdn.alpinelinux.org/alpine/edge/$repo/$arch/APKINDEX.tar.gz" | tar -xzOf - APKINDEX
+		echo
+	done > "$index/$arch"
+	missing=$(cat packages.txt "packages-$arch.txt" 2>/dev/null | sed -e 's/#.*//' -e '/^[[:space:]]*$/d' |
+		while read -r package; do
+			name=${package%%>=*}
+			min=
+			[ "$name" = "$package" ] || min=${package#*>=}
+			provided "$name" "$min" "$index/$arch" || echo "$package"
+		done)
+	[ -z "$missing" ] || { printf 'static: not in Alpine edge %s: %s\n' "$arch" "$missing" >&2; exit 1; }
 done
 echo 'static: ok'

@@ -10,6 +10,7 @@ check() { label=$1; shift; if "$@" >/dev/null 2>&1; then pass "$label"; else fai
 in_runlevel() { rc-update show "$2" | awk -v s="$1" '$1 == s { found = 1 } END { exit !found }'; }
 managed() { cmp -s "$1" "$2" && [ "$(stat -c %u:%g:%a "$2")" = "0:0:$3" ]; }
 no_match() { ! grep -Eqs "$@"; }
+major_at_least() { [ "$("$2" --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | cut -d. -f1)" -ge "$1" ] 2>/dev/null; }
 
 [ "$(id -u)" -eq 0 ] || { echo 'verify: run as root' >&2; exit 1; }
 user=${USER_NAME:-}
@@ -26,6 +27,9 @@ check 'dwl shared libraries resolve' sh -c '! ldd /usr/local/bin/dwl 2>&1 | grep
 check 'dwl build dependencies removed' sh -c '! apk info -e .home-dwl-build'
 for cmd in foot bemenu-run grim slurp wl-copy; do check "$cmd installed" command -v "$cmd"; done
 check 'Hack font installed' sh -c 'fc-list | grep -q Hack'
+for tool in clang ld.lld llc; do check "$tool is version 23 or newer" major_at_least 23 "$tool"; done
+check 'linux-lts not installed' sh -c '! apk info -e linux-lts'
+check 'running linux-stable' sh -c 'uname -r | grep -q -- -stable$'
 
 check 'udev manages devices' in_runlevel udev sysinit
 check 'mdev disabled' sh -c '! rc-update show sysinit | grep -qw mdev'
