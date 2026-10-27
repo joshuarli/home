@@ -37,7 +37,7 @@ cp tests/answers "$work/share/answers"
 qemu-img create -q -f qcow2 "$work/disk.qcow2" 8G
 dd if=/dev/zero of="$work/vars.fd" bs=1048576 count=64 2>/dev/null
 
-export VM_QEMU="qemu-system-aarch64 -M virt $accel -m 2048 -smp 2 \
+export VM_QEMU="qemu-system-aarch64 -M virt $accel -m 4096 -smp 4 \
 -drive if=pflash,format=raw,readonly=on,file=$firmware -drive if=pflash,format=raw,file=$work/vars.fd \
 -drive file=$work/disk.qcow2,if=virtio -drive file=fat:ro:$work/share,format=raw,if=virtio,readonly=on \
 -nic user,model=virtio-net-pci -device virtio-gpu-pci -device qemu-xhci -device usb-kbd \

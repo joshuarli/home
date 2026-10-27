@@ -54,7 +54,7 @@ proc type_tty1 {text} {
 
 proc poweroff {} {
 	set timeout 120
-	send "poweroff\r"
+	if {[catch {send "poweroff\r"}]} { fail "vm exited unexpectedly" }
 	expect eof
 	wait
 }
