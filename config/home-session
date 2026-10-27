@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+[ "$(tty 2>/dev/null || :)" = /dev/tty1 ] || exit 0
+uid=$(id -u)
+runtime=/run/user/$uid
+[ -d "$runtime" ] && [ ! -L "$runtime" ] || exit 1
+[ "$(stat -c '%u:%a' "$runtime")" = "$uid:700" ] || exit 1
+export XDG_RUNTIME_DIR="$runtime" XDG_SESSION_TYPE=wayland
+unset DISPLAY
+exec /usr/local/bin/dwl -s '/usr/bin/foot <&-'

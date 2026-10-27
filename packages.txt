@@ -1,0 +1,20 @@
+# Alpine desktop packages, not a replacement for alpine-base
+doas
+eudev
+eudev-openrc
+udev-init-scripts-openrc
+seatd
+seatd-openrc
+foot
+font-dejavu
+fontconfig
+libinput
+wlroots0.19
+mesa-egl
+mesa-gles
+mesa-gbm
+mesa-dri-gallium
+xkeyboard-config
+linux-firmware-intel
+linux-firmware-i915
+intel-ucode
