@@ -4,13 +4,26 @@ set rootpw homevmroot
 set userpw homevmuser
 log_file -noappend $work/vm.log
 
-proc fail {msg} { puts "\nvm: FAIL: $msg"; exit 1 }
+proc qemu_running {} {
+	global work
+	expr {[file exists $work/qemu.pid] && ![catch {exec kill -0 [string trim [exec cat $work/qemu.pid]]}]}
+}
+
+proc fail {msg} {
+	global work
+	puts "\nvm: FAIL: $msg"
+	if {[qemu_running]} { catch {exec kill [string trim [exec cat $work/qemu.pid]]} }
+	exit 1
+}
 
 proc boot {extra} {
-	global qemu spawn_id
-	eval spawn $qemu $extra
+	global qemu work spawn_id stty_init
+	file delete -force $work/serial.sock $work/qemu.pid
+	if {[catch {eval exec $qemu $extra} err]} { fail "qemu did not start: $err" }
+	set stty_init "raw -echo"
+	spawn nc -U $work/serial.sock
 	set timeout 180
-	expect "login:" {} eof { fail "qemu exited before login" } timeout { fail "no serial login prompt" }
+	expect "login:" {} eof { fail "serial console closed before login" } timeout { fail "no serial login prompt" }
 }
 
 proc login {} {
@@ -50,10 +63,11 @@ proc type_tty1 {text} {
 }
 
 proc poweroff {} {
-	set timeout 120
-	if {[catch {send "poweroff\r"}]} { fail "vm exited unexpectedly" }
-	expect eof
-	wait
+	if {![qemu_running] || [catch {send "poweroff\r"}]} { fail "vm exited unexpectedly" }
+	for {set i 0} {$i < 120 && [qemu_running]} {incr i} { after 1000 }
+	if {[qemu_running]} { fail "vm did not power off" }
+	catch close
+	catch wait
 }
 
 puts "vm: installing stock Alpine"
@@ -71,7 +85,7 @@ expect {
 	}
 	-re {ssh key or URL} { send "none\r"; exp_continue }
 	-re {RC=([0-9]+)\r*\n[^\n]*VM# } { if {$expect_out(1,string) != 0} { fail "setup-alpine" } }
-	eof { fail "qemu exited during setup-alpine: [wait]" }
+	eof { fail "serial console closed during setup-alpine" }
 	timeout { fail "setup-alpine timed out" }
 }
 poweroff
