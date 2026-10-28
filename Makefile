@@ -1,5 +1,5 @@
 .PHONY: install verify check test-vm
-USER_NAME ?=
+USER_NAME ?= josh
 install:
 	USER_NAME='$(USER_NAME)' sh ./install.sh
 verify:

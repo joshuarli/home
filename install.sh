@@ -32,7 +32,7 @@ install_managed() {
 	fi
 }
 
-[ "$(id -u)" -eq 0 ] || die 'run as root, for example: doas make install USER_NAME=yourlogin'
+[ "$(id -u)" -eq 0 ] || die 'run as root, for example: doas make install'
 [ -r /etc/os-release ] && . /etc/os-release
 [ "${ID:-}" = alpine ] || die 'this provisioner supports only Alpine Linux'
 case ${VERSION_ID:-} in
@@ -49,8 +49,7 @@ command -v git >/dev/null && command -v make >/dev/null || die 'git and make are
 ! apk info -e linux-lts >/dev/null 2>&1 ||
 	die 'linux-lts is installed; this desktop runs linux-stable: apk add linux-stable && apk del linux-lts, then reboot'
 
-user=${USER_NAME:-}
-[ -n "$user" ] || die 'set USER_NAME to the desktop login, for example: doas make install USER_NAME="$(id -un)"'
+user=${USER_NAME:-josh}
 [ "$user" != root ] || die 'USER_NAME must be a regular user, not root'
 entry=$(getent passwd "$user") || die "user $user does not exist; create it with setup-user or adduser"
 uid=$(printf '%s\n' "$entry" | cut -d: -f3)
@@ -145,4 +144,4 @@ fi
 as_user 'make -s -C usr links >/dev/null' || die "linking dotfiles from $home/usr failed"
 [ -x "$home/.local/bin/ish" ] || as_user 'make -s -C usr tools TOOLS=ish' || die "installing ish from $home/usr failed"
 
-say "provisioned. Log out, then log in as $user on tty1. Run: doas make verify USER_NAME=$user"
+say "provisioned. Log out, then log in as $user on tty1. Run: doas make -C home verify"

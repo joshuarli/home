@@ -13,8 +13,7 @@ no_match() { ! grep -Eqs "$@"; }
 major_at_least() { [ "$("$2" --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | cut -d. -f1)" -ge "$1" ] 2>/dev/null; }
 
 [ "$(id -u)" -eq 0 ] || { echo 'verify: run as root' >&2; exit 1; }
-user=${USER_NAME:-}
-[ -n "$user" ] || { echo 'verify: set USER_NAME' >&2; exit 1; }
+user=${USER_NAME:-josh}
 uid=$(id -u "$user") || { echo "verify: no user $user" >&2; exit 1; }
 home=$(getent passwd "$user" | cut -d: -f6)
 

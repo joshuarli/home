@@ -27,11 +27,11 @@ Reboot into the installed system and log in as that user.
 ## 2. Provision
 
 ```sh
-doas apk add git make
-git clone https://github.com/joshuarli/home
-cd home
-doas make install USER_NAME="$(id -un)"
+doas apk add git make && git clone https://github.com/joshuarli/home && doas make -C home install
 ```
+
+`make install` defaults to user `josh` (`USER_NAME ?= josh`); override with
+`doas make -C home install USER_NAME=other` if needed.
 
 `make install` checks the system before changing anything and stops with an
 explanation if a check fails. It then:
@@ -69,7 +69,7 @@ profile, so it cannot serve ssh commands or start the desktop.
 ## 3. Verify
 
 ```sh
-doas make verify USER_NAME="$(id -un)"
+doas make -C home verify
 ```
 
 ## 4. Recover
@@ -81,7 +81,7 @@ a `seat` member, so `doas delgroup "$USER" seat` disables it.
 
 ## 5. Reapply
 
-Pull or edit this checkout and run `doas make install USER_NAME=...` again.
+Pull or edit this checkout and run `doas make -C home install` again.
 Unchanged files are left alone, dwl is rebuilt only when `build/dwl.sh` or
 `config/dwl.h` changes, and ish is installed only if missing (update it with
 `~/usr`'s own `make`). A managed path holding something home did not install
